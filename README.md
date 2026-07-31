@@ -41,40 +41,61 @@ All six default to on **once the mod is enabled** — which is not the same as o
 It runs on every generated level, so if it took a single RNG draw every seed would stop
 reproducing its dungeon. It takes none. A level that already satisfies the invariant —
 the overwhelming majority — is bit-identical to one generated with no mod at all, and
-only the stranded minority is touched, by one grid. The main repository's tests ratchet
-that rather than trusting it.
+only the stranded minority is touched, by one grid. This repository's stairs tests
+ratchet that against real generated levels rather than trusting it.
 
 ## Installing
 
 Two files: `manifest.json` and `plugin.js`. Any of:
 
-- **In the game** — Mods → install, once this repository has a release tag the game
-  ships a digest for. That path verifies the bytes against a hash built into the game,
-  so a replaced tag or an intercepted download fails rather than runs.
+- **In the game** — Mods → **Install a mod...**, which fetches this repository at a
+  release tag and checks every file against a SHA-256 that ships inside the game. A
+  replaced tag or an intercepted download fails rather than runs. This is the path that
+  works in every browser, including the ones with no directory picker.
 - **A folder** — clone this repository into your mods directory, or point the browser
   build at it with **Load mod folder**.
 
-`plugin.js` is generated from TypeScript in the main repository
-(`packages/web/mods/bug-fixes/plugin.ts` plus `stairs.ts` and `strings.ts`, bundled
-into one module by `packages/web/scripts/build-mod-plugins.mjs`). It is committed here
-because that is what an install fetches. Edit the source, not this file — and if you
-are reading it to decide whether to trust it, that is exactly why it ships unminified.
+`plugin.js` is generated from `plugin.ts`, `stairs.ts` and `strings.ts` in this
+repository, bundled into one module. It is committed because
+that is what an install fetches. Edit the source, not this file — and if you are
+reading it to decide whether to trust it, that is exactly why it ships unminified.
+
+## Working on it
+
+The source lives here now, and so do the tests. They boot a **real game** against the
+published engine (`@rpgm-tools/neo-angband-core`) rather than a fake, because a
+staircase-reachability fix proven against a hand-built cave is a fix proven against a
+fixture — the staircase tests generate real levels at real depths.
+
+```bash
+npm install
+```
+
+```bash
+npm run verify
+```
+
+That typechecks, runs the tests, and confirms the committed `plugin.js` is a current
+build of the source — the last one matters more than it looks. The catalogue's SHA-256
+is taken **from** `plugin.js`, so a stale artefact verifies perfectly and is the file
+players actually run.
+
+One external dependency, and it is a checkout rather than a package: the game's content
+pack (Angband 4.2.6 gamedata, which the tests generate levels from) and the plugin
+builder both live in the game's repository. Clone
+[neo-angband](https://github.com/neostryder/neo-angband) as a sibling of this
+directory, or set `NEO_ANGBAND_REPO` to where it already is. The engine itself comes
+from npm; only the pack and the build tool need the checkout.
+
+```bash
+npm run build     # rebuild plugin.js after editing plugin.ts
+```
 
 ## A note on scores
 
 A mod that changes gameplay flags the save, permanently. That is deliberate: a
 character who played with fixes Angband does not have should not sit in a score list
 beside one who did not.
-
-## Where the tests are
-
-In the main repository — `packages/web/mods/bug-fixes/plugin.test.ts`,
-`stairs.test.ts` and `strings.test.ts`, about 1200 lines — where they run on every push
-against the real engine, including full level generations for the staircase fix. A
-round-trip test (`packages/web/src/mod-plugin-build.test.ts`) builds this `plugin.js`,
-loads it through the game's own folder loader, and checks it installs the same hooks
-the in-tree copy does. Tests that travel to a repository with no engine to test against
-are tests that stop running.
 
 ## Licence
 

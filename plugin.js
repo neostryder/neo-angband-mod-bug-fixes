@@ -1,8 +1,7 @@
-// bug-fixes - built from packages/web/mods/bug-fixes/plugin.ts by
-// packages/web/scripts/build-mod-plugins.mjs in the Neo Angband repository.
-// Generated: edit the TypeScript source, not this file.
+// bug-fixes - generated from plugin.ts by neo-angband-mod-build
+// (@rpgm-tools/neo-angband-mod-sdk). Edit the TypeScript source, not this file.
 
-// packages/web/mods/bug-fixes/stairs.ts
+// stairs.ts
 function stairWalkable(c, grid) {
   return c.isPassable(grid) || c.isDoor(grid) || c.isRubble(grid);
 }
@@ -98,7 +97,7 @@ function ensureStairsReachable(g, quest, core) {
   return true;
 }
 
-// packages/web/mods/bug-fixes/strings.ts
+// strings.ts
 var MISC_STRING_CORRECTIONS = {
   /* effect-handler-general.c: its three sibling messages ("Bad effect
    * description passed to effect_info().  Please report this bug." and friends)
@@ -115,7 +114,7 @@ function miscStringFix(text) {
   return MISC_STRING_CORRECTIONS[text] ?? text;
 }
 
-// packages/web/mods/bug-fixes/plugin.ts
+// plugin.ts
 var plugin_default = {
   api: 1,
   hooks(ctx) {
