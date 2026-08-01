@@ -20,7 +20,10 @@
  */
 
 import { describe, expect, it } from "vitest";
-import { loadJson, loadRecords } from "./content";
+import {
+  loadPackFile as loadJson,
+  loadPackRecords as loadRecords,
+} from "@rpgm-tools/neo-angband-content/pack";
 import {
   ArtifactState,
   Chunk,
