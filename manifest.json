@@ -1,7 +1,7 @@
 {
   "id": "bug-fixes",
   "name": "Bug Fixes (unofficial patch set)",
-  "version": "0.13.0",
+  "version": "0.14.0",
   "shape": "content",
   "facets": [
     "content",
@@ -12,7 +12,7 @@
   "dependencies": {
     "core": "*"
   },
-  "author": "neostryder (RPGM Tools)",
+  "author": "neostryder",
   "license": "GPL-2.0-only",
   "description": "Opt-in fixes for bugs in Angband 4.2.6, in the model of an unofficial patch.\n\nEach fix is a named toggle citing the upstream issue it answers, so you can take the set minus any one of them. With this off, core stays faithful to 4.2.6 - bugs included, which is the point of the port.",
   "rules": [
@@ -52,5 +52,6 @@
       "description": "Cosmetic corrections to Angband 4.2.6's own message text. Measured rather than assumed: 38 messages put TWO spaces after a sentence (\"Saving failed.  Try again? \"), which this collapses to one, and a sweep for misspellings across every msg()/msgt()/get_check() literal found NONE - so spacing is all there is to fix today. Purely presentational: no message changes meaning, and nothing about gameplay changes.",
       "default": true
     }
-  ]
+  ],
+  "repository": "https://github.com/neostryder/neo-angband-mod-bug-fixes"
 }
