@@ -1,6 +1,6 @@
 {
   "sections": {
-    "two-hand-lore": {
+    "text-corrections": {
       "patches": {
         "core:hafted--two-handed-great-flail": {
           "desc": [

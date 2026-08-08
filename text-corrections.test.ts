@@ -1,6 +1,15 @@
 /**
- * "No two-handed wielding in the item lore" (section two-hand-lore).
+ * "Text corrections" (section text-corrections).
  *
+ * ONE TOGGLE PER CLASS OF FIX, not one per fix. A player who wants item
+ * descriptions to describe the game they are playing wants all of them; a menu
+ * with a row per corrected sentence is a menu nobody reads (neostryder,
+ * 2026-08-07). So this section owns every "the text says something the game no
+ * longer does" correction, and a new one joins it rather than growing the list.
+ * The rows below are therefore a table, and the assertions loop over it: adding
+ * a correction means adding a row and its patch, and nothing else.
+ *
+ * TODAY THAT IS THE TWO-HANDED WEAPON LORE.
  * Angband 4.2 has one weapon slot and no two-handed rule: nothing stops a
  * character wielding a Pike and a shield. Four gamedata descriptions still
  * assert otherwise, left over from a rule the game dropped. Core keeps them,
@@ -83,18 +92,18 @@ const CONTRIB: Record<string, { sections: Record<string, { patches: Record<strin
   artifact: artifactContrib,
 };
 
-describe("two-hand-lore", () => {
+describe("text-corrections", () => {
   it("declares the section the contributions are filed under", () => {
     const ids = (manifest.sections ?? []).map((s: { id: string }) => s.id);
-    expect(ids).toContain("two-hand-lore");
+    expect(ids).toContain("text-corrections");
     for (const file of ["object", "artifact"]) {
-      expect(Object.keys(CONTRIB[file]!.sections)).toEqual(["two-hand-lore"]);
+      expect(Object.keys(CONTRIB[file]!.sections)).toEqual(["text-corrections"]);
     }
   });
 
   it("patches exactly the four records it names, and no others", () => {
     const refs = Object.values(CONTRIB).flatMap((c) =>
-      Object.keys(c.sections["two-hand-lore"]!.patches),
+      Object.keys(c.sections["text-corrections"]!.patches),
     );
     expect(refs).toHaveLength(ROWS.length);
     expect(new Set(refs).size).toBe(ROWS.length);
@@ -110,7 +119,7 @@ describe("two-hand-lore", () => {
       expect(hits).toHaveLength(1);
 
       const ref = `core:${recordKey(row.file, hits[0]!)}`;
-      const patches = CONTRIB[row.file]!.sections["two-hand-lore"]!.patches;
+      const patches = CONTRIB[row.file]!.sections["text-corrections"]!.patches;
       expect(Object.keys(patches)).toContain(ref);
     });
 
@@ -119,7 +128,7 @@ describe("two-hand-lore", () => {
         Object.entries(row.find).every(([k, v]) => r[k] === v),
       )!;
       const ref = `core:${recordKey(row.file, rec)}`;
-      const replacement = CONTRIB[row.file]!.sections["two-hand-lore"]!.patches[ref]!;
+      const replacement = CONTRIB[row.file]!.sections["text-corrections"]!.patches[ref]!;
 
       const before = (rec.desc as string[]).join("");
       const after = replacement.desc.join("");
