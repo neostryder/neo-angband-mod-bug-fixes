@@ -1,0 +1,20 @@
+{
+  "sections": {
+    "two-hand-lore": {
+      "patches": {
+        "core:of-wrath": {
+          "desc": [
+            "A massive triple-pronged spear, evoking the spirit of Osse who with it",
+            " pierced legions of evil and undead."
+          ]
+        },
+        "core:mundwine": {
+          "desc": [
+            "A massive axe with twin razor-sharp heads, its surface intricately",
+            " engraved in filleted gold with spells to ward off the elements."
+          ]
+        }
+      }
+    }
+  }
+}
