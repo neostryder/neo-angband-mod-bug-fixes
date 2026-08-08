@@ -43,5 +43,13 @@
     "bugfix.duplicateArtifact": "bugfix.stateIntegrity",
     "bugfix.stairsReachable": "bugfix.levelGeneration"
   },
+  "sections": [
+    {
+      "id": "two-hand-lore",
+      "title": "No two-handed wielding in the item lore",
+      "description": "Angband 4.2 has no two-handed weapons - every weapon goes in the one weapon slot, and nothing stops you carrying a shield alongside a Pike. Four descriptions still tell you otherwise, left over from a rule the game no longer has. This rewrites those four to describe the item without the claim. Text only: no weapon's damage, weight or slot changes.\n\nAffects the Two-Handed Great Flail, the Pike, the Trident 'of Wrath' and 'Mundwine'.",
+      "default": true
+    }
+  ],
   "repository": "https://github.com/neostryder/neo-angband-mod-bug-fixes"
 }
