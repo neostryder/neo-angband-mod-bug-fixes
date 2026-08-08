@@ -49,7 +49,7 @@
     {
       "flag": "bugfix.miscStrings",
       "title": "Misc. string fixes",
-      "description": "Cosmetic corrections to Angband 4.2.6's own message text. Measured rather than assumed: 38 messages put TWO spaces after a sentence (\"Saving failed.  Try again? \"), which this collapses to one, and a sweep for misspellings across every msg()/msgt()/get_check() literal found NONE - so spacing is all there is to fix today. Purely presentational: no message changes meaning, and nothing about gameplay changes.",
+      "description": "Cosmetic corrections to Angband 4.2.6's own message text. Measured rather than assumed, and it is a smaller list than you might expect: 4.2.6 puts TWO spaces after a sentence almost everywhere, and exactly FOUR messages break that pattern with one (\"The ground shakes! The ceiling caves in!\"), so this normalizes those four UP to the house style. A sweep for misspellings across every msg()/msgt()/get_check() literal found NONE, so spacing really is all there is to fix today. Purely presentational: no message changes meaning, and nothing about gameplay changes.",
       "default": true
     }
   ],
