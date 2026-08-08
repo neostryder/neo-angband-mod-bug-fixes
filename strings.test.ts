@@ -8,6 +8,7 @@ import { describe, expect, it } from "vitest";
 import { MISC_STRING_CORRECTIONS, MISSPELLINGS, miscStringFix } from "./strings";
 import * as neoCore from "@rpgm-tools/neo-angband-core";
 import plugin from "./plugin";
+import manifest from "./manifest.json";
 
 /** The mod's behaviour as the host drives it: plugin.hooks(ctx) reduced to a
  * function of flags, with the real core namespace as ctx.core. */
@@ -75,6 +76,40 @@ describe("the bug-fixes mod's Misc. string fixes (docs/modding/BUG_FIXES.md #14)
        * change what it means. */
       expect(to.replace(/([.!?]) {2}/gu, "$1 ")).toBe(from);
       expect(to).not.toBe(from);
+    }
+  });
+
+  it("the toggle's own description tells the truth about the table", () => {
+    /* This row shipped saying the opposite of what the code does - "38 messages
+     * put TWO spaces ... which this collapses to one", with a count nothing
+     * produced and an example not in the table. Prose is not behaviour, so the
+     * two are tied together here: the player-facing text is the only account of
+     * this fix most people will ever read.
+     *
+     * NUMBER WORDS on purpose. A digit would let "4" match a version string or
+     * a line number somewhere else in the sentence. */
+    const rule = manifest.rules.find((r) => r.flag === "bugfix.miscStrings");
+    expect(rule, "the toggle must exist to be described").toBeDefined();
+    const text = rule!.description;
+    const words = ["ZERO", "ONE", "TWO", "THREE", "FOUR", "FIVE", "SIX"];
+    const count = Object.keys(MISC_STRING_CORRECTIONS).length;
+    expect(
+      text.toUpperCase(),
+      `the description must name the row count (${count}) in words`,
+    ).toContain(words[count]);
+
+    /* And it must not describe the fix running backwards. Every row ADDS a
+     * space; a description promising to collapse two into one is the bug this
+     * test exists to catch. */
+    expect(text).not.toMatch(/collapse|collapses/iu);
+
+    /* Its example, if it gives one, has to be text the table actually has. */
+    for (const quoted of text.match(/"[^"]+"/gu) ?? []) {
+      const inner = quoted.slice(1, -1);
+      expect(
+        Object.keys(MISC_STRING_CORRECTIONS),
+        `the description quotes "${inner}", which is not a row`,
+      ).toContain(inner);
     }
   });
 

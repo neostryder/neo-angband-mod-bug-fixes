@@ -52,7 +52,7 @@
  * hand this function the finished message for the lookup to hit.
  *
  * "Non-existent glyph requested. Please report this bug." (ui-prefs.c) is a
- * sixth instance upstream, deliberately absent here: the port has no glyph
+ * fifth instance upstream, deliberately absent here: the port has no glyph
  * request path to emit it (text-census KNOWN_ABSENT, internal-error category),
  * so a row for it would be a rule nothing can ever apply.
  */
