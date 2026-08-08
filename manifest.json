@@ -55,9 +55,9 @@
   ],
   "sections": [
     {
-      "id": "two-hand-lore",
-      "title": "No two-handed wielding in the item lore",
-      "description": "Angband 4.2 has no two-handed weapons - every weapon goes in the one weapon slot, and nothing stops you carrying a shield alongside a Pike. Four descriptions still tell you otherwise, left over from a rule the game no longer has. This rewrites those four to describe the item without the claim. Text only: no weapon's damage, weight or slot changes.\n\nAffects the Two-Handed Great Flail, the Pike, the Trident 'of Wrath' and 'Mundwine'.",
+      "id": "text-corrections",
+      "title": "Text corrections",
+      "description": "Item and monster descriptions that say something the game no longer does. One toggle for the whole class, not one per sentence.\n\nToday that is the two-handed weapon lore: Angband 4.2 has a single weapon slot and no two-handed rule - nothing stops you carrying a shield alongside a Pike - but four descriptions still tell you otherwise, left over from a rule the game dropped. This rewrites those four (the Two-Handed Great Flail, the Pike, the Trident 'of Wrath' and 'Mundwine').\n\nText only. Nothing here changes damage, weight, slot or any other number.",
       "default": true
     }
   ],
