@@ -1,0 +1,17 @@
+{
+  "sections": {
+    "two-hand-lore": {
+      "patches": {
+        "core:hafted--two-handed-great-flail": {
+          "desc": [
+            "Two great bars of wood connected by a massive chain, built",
+            " to deliver crushing blows."
+          ]
+        },
+        "core:polearm--pike": {
+          "desc": ["A fifteen foot spear, principally used in infantry formations."]
+        }
+      }
+    }
+  }
+}
