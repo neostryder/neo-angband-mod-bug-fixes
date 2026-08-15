@@ -1,6 +1,42 @@
 // bug-fixes - generated from plugin.ts by neo-angband-mod-build
 // (@rpgm-tools/neo-angband-mod-sdk). Edit the TypeScript source, not this file.
 
+// migrate.ts
+var BUGFIX_SAVE_SCHEMA = 1;
+var SCHEMA0_TEXT_AND_HISTORY = [
+  "bugfix.uniqueKillHistory",
+  "bugfix.miscStrings"
+];
+var SCHEMA0_STATE_INTEGRITY = [
+  "bugfix.noiseScentSave",
+  "bugfix.objectListOrder",
+  "bugfix.duplicateArtifact"
+];
+var SCHEMA0_LEVEL_GENERATION = ["bugfix.stairsReachable"];
+function foldClassFlag(values) {
+  return values.some((v) => v === true);
+}
+function readOldFlag(data, flag) {
+  return data[flag] === true;
+}
+function migrateBugFixBagData(data, fromSchema) {
+  if (fromSchema >= BUGFIX_SAVE_SCHEMA) {
+    return data ?? {};
+  }
+  const old = data !== null && typeof data === "object" && !Array.isArray(data) ? data : {};
+  return {
+    "bugfix.textAndHistory": foldClassFlag(
+      SCHEMA0_TEXT_AND_HISTORY.map((f) => readOldFlag(old, f))
+    ),
+    "bugfix.stateIntegrity": foldClassFlag(
+      SCHEMA0_STATE_INTEGRITY.map((f) => readOldFlag(old, f))
+    ),
+    "bugfix.levelGeneration": foldClassFlag(
+      SCHEMA0_LEVEL_GENERATION.map((f) => readOldFlag(old, f))
+    )
+  };
+}
+
 // stairs.ts
 function stairWalkable(c, grid) {
   return c.isPassable(grid) || c.isDoor(grid) || c.isRubble(grid);
@@ -117,26 +153,29 @@ function miscStringFix(text) {
 // plugin.ts
 var plugin_default = {
   api: 1,
+  /**
+   * Host seam: rewrite this mod's save bag when saveSchema has advanced.
+   * Delegates to migrateBugFixBagData so tests can drive the same function
+   * through migrateModBag without inventing a second path. The host also
+   * hands a plugin context as a third argument; this migrator does not use it.
+   */
+  migrateBag(data, fromSchema, _ctx) {
+    return migrateBugFixBagData(data, fromSchema);
+  },
   hooks(ctx) {
     const { flags, core } = ctx;
     const hooks = {};
-    if (flags["bugfix.uniqueKillHistory"] === true) {
+    if (flags["bugfix.textAndHistory"] === true) {
       hooks.historyAdd = (entry) => !entry.duplicate;
+      hooks.messageText = (raw) => miscStringFix(raw);
     }
-    if (flags["bugfix.noiseScentSave"] === true) {
+    if (flags["bugfix.stateIntegrity"] === true) {
       hooks.saveNoiseScent = () => true;
-    }
-    if (flags["bugfix.objectListOrder"] === true) {
       hooks.objectListTiebreak = (a, b) => Math.sign(a.dy - b.dy) || Math.sign(a.dx - b.dx);
-    }
-    if (flags["bugfix.duplicateArtifact"] === true) {
       hooks.artifactCommit = (_aidx, alreadyCreated) => !alreadyCreated;
     }
-    if (flags["bugfix.stairsReachable"] === true) {
+    if (flags["bugfix.levelGeneration"] === true) {
       hooks.levelGenerated = (gen, quest) => ensureStairsReachable(gen, quest, core);
-    }
-    if (flags["bugfix.miscStrings"] === true) {
-      hooks.messageText = (raw) => miscStringFix(raw);
     }
     return hooks;
   }
