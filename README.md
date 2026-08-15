@@ -55,8 +55,8 @@ Two files: `manifest.json` and `plugin.js`. Any of:
 - **A folder** — clone this repository into your mods directory, or point the browser
   build at it with **Load mod folder**.
 
-`plugin.js` is generated from `plugin.ts`, `migrate.ts`, `stairs.ts` and
-`strings.ts` in this repository, bundled into one module. It is committed because
+`plugin.js` is generated from `plugin.ts`, `stairs.ts` and `strings.ts` in this
+repository, bundled into one module. It is committed because
 that is what an install fetches. Edit the source, not this file — and if you are
 reading it to decide whether to trust it, that is exactly why it ships unminified.
 

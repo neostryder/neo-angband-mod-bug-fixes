@@ -44,8 +44,7 @@ import type {
   ObjectListEntry,
 } from "@rpgm-tools/neo-angband-core";
 import * as neoCore from "@rpgm-tools/neo-angband-core";
-import { migrateModBag, type JsonValue, type ModBag } from "@rpgm-tools/neo-angband-core";
-import { BUGFIX_SAVE_SCHEMA, migrateBugFixBagData } from "./migrate";
+import { validateManifest } from "@rpgm-tools/neo-angband-mod-sdk";
 import plugin from "./plugin";
 
 /**
@@ -167,78 +166,123 @@ describe("the bug-fixes mod's entry point", () => {
   });
 });
 
-describe("schema-0 bag migration (six atomic flags -> three classes)", () => {
-  /**
-   * A real old-shaped bag: schema 0 data is the six atomic fix flags a player
-   * could have set before the class-toggle regroup. Mixed states inside each
-   * multi-fix class are deliberate - they are what the fold rule must decide.
+describe("the six atomic flags survive the class regroup via renamedRuleFlags", () => {
+  /*
+   * This mod has never written a save-file bag (no `register()`, nothing on
+   * `ctx.state.mods["bug-fixes"]`), so it has no business owning a
+   * `saveSchema` / `migrateBag` migration - that seam is for a mod's own
+   * PERSISTED GAME STATE, and this mod persists none. What actually needed to
+   * survive the six-flags-to-three regroup is PLAYER TOGGLE STATE, which the
+   * host resolves from its own rule-choices store, keyed by flag name - and
+   * the host ships a dedicated, tested mechanism for exactly this ("Renaming a
+   * player-toggleable rule", docs/modding/AUTHORING.md in the engine repo,
+   * which uses this mod as its own worked example): `renamedRuleFlags` in the
+   * manifest, consumed by ModStore.migrateRuleChoices at mod-load time.
    */
-  const OLD_BAG: ModBag = {
-    schema: 0,
-    data: {
+  const manifestRaw = JSON.parse(
+    readFileSync(new URL("./manifest.json", import.meta.url), "utf8"),
+  ) as {
+    rules: { flag: string }[];
+    renamedRuleFlags?: Record<string, string>;
+    saveSchema?: number;
+  };
+
+  const EXPECTED_RENAMES: Readonly<Record<string, string>> = {
+    "bugfix.uniqueKillHistory": "bugfix.textAndHistory",
+    "bugfix.miscStrings": "bugfix.textAndHistory",
+    "bugfix.noiseScentSave": "bugfix.stateIntegrity",
+    "bugfix.objectListOrder": "bugfix.stateIntegrity",
+    "bugfix.duplicateArtifact": "bugfix.stateIntegrity",
+    "bugfix.stairsReachable": "bugfix.levelGeneration",
+  };
+
+  it("declares no saveSchema and ships no migrateBag - there is no bag to migrate", () => {
+    expect(manifestRaw.saveSchema).toBeUndefined();
+    expect((plugin as Record<string, unknown>)["migrateBag"]).toBeUndefined();
+  });
+
+  it("maps every retired atomic flag to its class flag, and only to a flag still declared", () => {
+    expect(manifestRaw.renamedRuleFlags).toEqual(EXPECTED_RENAMES);
+    const currentFlags = new Set(manifestRaw.rules.map((r) => r.flag));
+    for (const [oldFlag, newFlag] of Object.entries(EXPECTED_RENAMES)) {
+      expect(currentFlags.has(newFlag), `${newFlag} must still be a declared rule`).toBe(true);
+      expect(currentFlags.has(oldFlag), `${oldFlag} must NOT still be a declared rule`).toBe(false);
+    }
+  });
+
+  it("passes the host's real manifest validator with renamedRuleFlags in place", () => {
+    // The actual gate the game runs at install/enable time, not a hand-rolled
+    // stand-in for it - this is what would refuse a bad rename (a destination
+    // that is not a current rule, a source that still is one, self-rename).
+    expect(() => validateManifest(manifestRaw)).not.toThrow();
+  });
+
+  /**
+   * Mirrors ModStore.migrateRuleChoices (packages/web/src/mod-store.ts in the
+   * engine repo): a choice already recorded for the current flag wins outright;
+   * otherwise every retired flag feeding one class is folded with OR. This repo
+   * has no dependency on the web package, so the fold is reimplemented here to
+   * pin the PROPERTY the manifest's renamedRuleFlags exists to buy: an old
+   * per-fix choice always resolves into the right class, and turning a fix ON
+   * is never silently lost.
+   */
+  function foldRuleChoices(
+    oldChoices: Readonly<Record<string, boolean>>,
+    renamed: Readonly<Record<string, string>>,
+  ): Record<string, boolean> {
+    const folded: Record<string, boolean> = {};
+    for (const [oldFlag, newFlag] of Object.entries(renamed)) {
+      const old = oldChoices[oldFlag];
+      if (old === undefined) continue;
+      folded[newFlag] = (folded[newFlag] ?? false) || old;
+    }
+    return folded;
+  }
+
+  it("round-trips a pre-regroup player's mixed atomic choices into the three classes with no loss", () => {
+    // A player on the OLD (six-flag) mod who had explicitly turned some fixes
+    // off - mixed state inside a multi-fix class is exactly what the OR-fold
+    // has to decide, and is the case a lossy migration would get wrong.
+    const preRegroupChoices = {
       "bugfix.uniqueKillHistory": true,
       "bugfix.miscStrings": false,
       "bugfix.noiseScentSave": true,
       "bugfix.objectListOrder": false,
-      "bugfix.duplicateArtifact": true,
+      "bugfix.duplicateArtifact": false,
       "bugfix.stairsReachable": false,
-    },
-  };
-
-  it("folds a real schema-0 bag through migrateModBag into the three class flags", () => {
-    /* Drive the REAL migration path (core's migrateModBag + this mod's migrator),
-     * not a hand-built expected object derived from the same function. If the
-     * migrator is deleted or left as an identity, this fails because the data
-     * still has the six old keys / wrong values - not because something is
-     * "not a function". */
-    const result = migrateModBag(
-      OLD_BAG,
-      BUGFIX_SAVE_SCHEMA,
-      (data, from) => migrateBugFixBagData(data, from) as JsonValue,
-    );
-    expect(result.schema).toBe(BUGFIX_SAVE_SCHEMA);
-    expect(result.data).toEqual({
-      /* OR fold: uniqueKillHistory on, miscStrings off -> class on */
-      "bugfix.textAndHistory": true,
-      /* OR fold: noiseScentSave on, objectListOrder off, duplicateArtifact on */
-      "bugfix.stateIntegrity": true,
-      /* stairsReachable was off alone */
-      "bugfix.levelGeneration": false,
-    });
-  });
-
-  it("wires plugin.migrateBag to the same fold (host call shape)", () => {
-    expect(plugin.migrateBag).toBeTypeOf("function");
-    const result = migrateModBag(OLD_BAG, BUGFIX_SAVE_SCHEMA, (data, from) =>
-      plugin.migrateBag!(data, from, {} as never) as JsonValue,
-    );
-    expect(result.data).toEqual({
-      "bugfix.textAndHistory": true,
-      "bugfix.stateIntegrity": true,
-      "bugfix.levelGeneration": false,
-    });
-  });
-
-  it("turns a class off only when every constituent was off", () => {
-    const allOffInText: ModBag = {
-      schema: 0,
-      data: {
-        "bugfix.uniqueKillHistory": false,
-        "bugfix.miscStrings": false,
-        "bugfix.noiseScentSave": false,
-        "bugfix.objectListOrder": false,
-        "bugfix.duplicateArtifact": false,
-        "bugfix.stairsReachable": true,
-      },
     };
-    const result = migrateModBag(allOffInText, BUGFIX_SAVE_SCHEMA, (data, from) =>
-      migrateBugFixBagData(data, from) as JsonValue,
-    );
-    expect(result.data).toEqual({
+    expect(foldRuleChoices(preRegroupChoices, EXPECTED_RENAMES)).toEqual({
+      "bugfix.textAndHistory": true, // uniqueKillHistory on, miscStrings off
+      "bugfix.stateIntegrity": true, // noiseScentSave on, the other two off
+      "bugfix.levelGeneration": false, // stairsReachable was off alone
+    });
+  });
+
+  it("turns a class off only when every one of its retired constituents was off", () => {
+    const allOffInText = {
+      "bugfix.uniqueKillHistory": false,
+      "bugfix.miscStrings": false,
+      "bugfix.noiseScentSave": false,
+      "bugfix.objectListOrder": false,
+      "bugfix.duplicateArtifact": false,
+      "bugfix.stairsReachable": true,
+    };
+    expect(foldRuleChoices(allOffInText, EXPECTED_RENAMES)).toEqual({
       "bugfix.textAndHistory": false,
       "bugfix.stateIntegrity": false,
       "bugfix.levelGeneration": true,
     });
+  });
+
+  it("leaves a flag the player never touched absent, so it still resolves to the manifest default", () => {
+    // getRuleChoices only ever stores deliberate deviations; a flag missing
+    // from the old choices must stay missing from the fold, not become an
+    // explicit false that would override the new rule's default.
+    const onlyOneChoice = { "bugfix.stairsReachable": false };
+    const folded = foldRuleChoices(onlyOneChoice, EXPECTED_RENAMES);
+    expect(folded).toEqual({ "bugfix.levelGeneration": false });
+    expect(folded).not.toHaveProperty("bugfix.textAndHistory");
+    expect(folded).not.toHaveProperty("bugfix.stateIntegrity");
   });
 });
 

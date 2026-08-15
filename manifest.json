@@ -9,7 +9,6 @@
   ],
   "modApi": 1,
   "engine": ">=0.10.0",
-  "saveSchema": 1,
   "dependencies": {
     "core": "*"
   },
@@ -36,5 +35,13 @@
       "default": true
     }
   ],
+  "renamedRuleFlags": {
+    "bugfix.uniqueKillHistory": "bugfix.textAndHistory",
+    "bugfix.miscStrings": "bugfix.textAndHistory",
+    "bugfix.noiseScentSave": "bugfix.stateIntegrity",
+    "bugfix.objectListOrder": "bugfix.stateIntegrity",
+    "bugfix.duplicateArtifact": "bugfix.stateIntegrity",
+    "bugfix.stairsReachable": "bugfix.levelGeneration"
+  },
   "repository": "https://github.com/neostryder/neo-angband-mod-bug-fixes"
 }
