@@ -9,47 +9,30 @@
   ],
   "modApi": 1,
   "engine": ">=0.10.0",
+  "saveSchema": 1,
   "dependencies": {
     "core": "*"
   },
   "author": "neostryder",
   "license": "GPL-2.0-only",
-  "description": "Opt-in fixes for bugs in Angband 4.2.6, in the model of an unofficial patch.\n\nEach fix is a named toggle citing the upstream issue it answers, so you can take the set minus any one of them. With this off, core stays faithful to 4.2.6 - bugs included, which is the point of the port.",
+  "description": "Opt-in fixes for bugs in Angband 4.2.6, in the model of an unofficial patch.\n\nEach class of fix is a named toggle, so you can take the set minus any one of them. With this off, core stays faithful to 4.2.6 - bugs included, which is the point of the port.",
   "rules": [
     {
-      "flag": "bugfix.uniqueKillHistory",
-      "title": "No duplicate unique kills in history (#4245)",
-      "description": "A unique reached again through a shape-change or projection death path no longer logs a second 'Killed X' entry in your character history.",
+      "flag": "bugfix.textAndHistory",
+      "title": "Text and history fixes",
+      "description": "What the game writes down or says - no game state changes. Stops a unique re-killed through a shape-change or projection death path from logging a second 'Killed X' history entry (#4245), and applies cosmetic corrections to Angband 4.2.6's own message text. Measured rather than assumed, and it is a smaller list than you might expect: 4.2.6 puts TWO spaces after a sentence almost everywhere, and exactly FOUR messages break that pattern with one (\"The ground shakes! The ceiling caves in!\"), so this normalizes those four UP to the house style. A sweep for misspellings across every msg()/msgt()/get_check() literal found NONE, so spacing really is all there is to fix today. Purely presentational: no message changes meaning, and nothing about gameplay changes.",
       "default": true
     },
     {
-      "flag": "bugfix.noiseScentSave",
-      "title": "Save noise and scent trails (#4605)",
-      "description": "Persists the noise and scent heatmaps in the save, so monsters track you identically after a save/reload as they would have without one.",
+      "flag": "bugfix.stateIntegrity",
+      "title": "State integrity fixes",
+      "description": "The game's own bookkeeping staying consistent with itself, including across a save and reload. Persists the noise and scent heatmaps so monsters track you identically after a save/reload (#4605); gives the floor object list a deterministic total order so equal-distance items never reorder unexpectedly (#4664); and refuses to commit an object that already carries a created artifact a second time (#4510).",
       "default": true
     },
     {
-      "flag": "bugfix.objectListOrder",
-      "title": "Strict object-list ordering (#4664)",
-      "description": "Gives the floor object list a deterministic total order (a geometric tiebreak after distance), so equal-distance items never reorder unexpectedly.",
-      "default": true
-    },
-    {
-      "flag": "bugfix.duplicateArtifact",
-      "title": "Prevent duplicate artifacts (#4510)",
-      "description": "Adds a defensive re-check so an object already carrying a created artifact can never be committed as that artifact a second time.",
-      "default": true
-    },
-    {
-      "flag": "bugfix.stairsReachable",
-      "title": "Always a reachable up and down staircase",
-      "description": "Vanilla level generation can seal a staircase inside a vault it never tunnelled into, leaving about 10% of floors with no walkable staircase in one direction (usually up, since a level gets only 1-2 up stairs but 3-4 down). This adds one reachable staircase on such a floor. It changes the layout of the levels it repairs, so a character played with this on is not layout-identical to one played without it.",
-      "default": true
-    },
-    {
-      "flag": "bugfix.miscStrings",
-      "title": "Misc. string fixes",
-      "description": "Cosmetic corrections to Angband 4.2.6's own message text. Measured rather than assumed, and it is a smaller list than you might expect: 4.2.6 puts TWO spaces after a sentence almost everywhere, and exactly FOUR messages break that pattern with one (\"The ground shakes! The ceiling caves in!\"), so this normalizes those four UP to the house style. A sweep for misspellings across every msg()/msgt()/get_check() literal found NONE, so spacing really is all there is to fix today. Purely presentational: no message changes meaning, and nothing about gameplay changes.",
+      "flag": "bugfix.levelGeneration",
+      "title": "Level generation fixes",
+      "description": "Anything that changes the layout a player walks around in. Vanilla level generation can seal a staircase inside a vault it never tunnelled into, leaving about 10% of floors with no walkable staircase in one direction (usually up, since a level gets only 1-2 up stairs but 3-4 down). This adds one reachable staircase on such a floor. It changes the layout of the levels it repairs, so a character played with this on is not layout-identical to one played without it - kept separate so a player who wants faithful layout is not forced to also give up the text and bookkeeping fixes.",
       "default": true
     }
   ],

@@ -52,6 +52,7 @@
  */
 
 import type { Gen, ModHooks } from "@rpgm-tools/neo-angband-core";
+import { migrateBugFixBagData } from "./migrate";
 import { ensureStairsReachable, type StairsCore } from "./stairs";
 import { miscStringFix } from "./strings";
 
@@ -68,66 +69,93 @@ interface HookCtx {
 export default {
   api: 1,
 
+  /**
+   * Host seam: rewrite this mod's save bag when saveSchema has advanced.
+   * Delegates to migrateBugFixBagData so tests can drive the same function
+   * through migrateModBag without inventing a second path. The host also
+   * hands a plugin context as a third argument; this migrator does not use it.
+   */
+  migrateBag(data: unknown, fromSchema: number, _ctx?: unknown): unknown {
+    return migrateBugFixBagData(data, fromSchema);
+  },
+
   hooks(ctx: HookCtx): ModHooks {
   const { flags, core } = ctx;
   const hooks: ModHooks = {};
 
   /*
-   * #4245 "Killing a unique twice logs it twice". A unique reached again through
-   * a shape-change or projection death path logs a second "Killed X" entry.
-   * Faithful core logs every entry it reaches, duplicates included; core tells us
-   * whether THIS entry is a duplicate and holds no opinion about it.
+   * bugfix.textAndHistory - what the game WRITES DOWN or SAYS. No game state.
+   * Folds #4245 (unique kill history) and the misc. string table.
    */
-  if (flags["bugfix.uniqueKillHistory"] === true) {
+  if (flags["bugfix.textAndHistory"] === true) {
+    /*
+     * #4245 "Killing a unique twice logs it twice". A unique reached again through
+     * a shape-change or projection death path logs a second "Killed X" entry.
+     * Faithful core logs every entry it reaches, duplicates included; core tells us
+     * whether THIS entry is a duplicate and holds no opinion about it.
+     */
     hooks.historyAdd = (entry): boolean => !entry.duplicate;
+
+    /*
+     * Misc. string fixes: upstream's own cosmetic string warts, corrected at the
+     * host's single message sink so every msg()/msgt() in core and the shell is
+     * covered by one rule. Identity for anything not in the table (strings.ts), and
+     * an exact-match table on purpose - messages arrive interpolated, so a general
+     * rewrite would edit inscriptions and names the player typed.
+     */
+    hooks.messageText = (raw): string => miscStringFix(raw);
   }
 
   /*
-   * #4605 "Noise and scent are not saved". The heatmaps are transient upstream,
-   * so monsters track the player differently after a save/reload than they would
-   * have without one. Asking for them in the save is the whole fix - core does
-   * the writing and the reading either way.
+   * bugfix.stateIntegrity - the game's own bookkeeping staying consistent with
+   * itself, including across a save and reload. Folds #4605, #4664, #4510.
    */
-  if (flags["bugfix.noiseScentSave"] === true) {
+  if (flags["bugfix.stateIntegrity"] === true) {
+    /*
+     * #4605 "Noise and scent are not saved". The heatmaps are transient upstream,
+     * so monsters track the player differently after a save/reload than they would
+     * have without one. Asking for them in the save is the whole fix - core does
+     * the writing and the reading either way.
+     */
     hooks.saveNoiseScent = (): boolean => true;
-  }
 
-  /*
-   * #4664 "Object list is not always correctly ordered". Upstream's compare_items
-   * (obj-util.c) is not a strict weak order for qsort, so the list can come out
-   * unstable. The port's comparator IS a lexicographic strict weak order feeding
-   * a STABLE Array.sort, so ties keep collect order - but two distinct entries at
-   * equal distance are still formally equivalent. This adds a deterministic
-   * geometric total key (nearer-to-top first, then leftmost), making the order a
-   * strict TOTAL order that holds even under a non-stable sort. PR #4668 was
-   * closed unmerged, so there is no accepted upstream fix to port instead.
-   *
-   * Total order, so it is a legal comparator: antisymmetric by construction
-   * (Math.sign of a difference) and transitive (lexicographic on dy then dx).
-   */
-  if (flags["bugfix.objectListOrder"] === true) {
+    /*
+     * #4664 "Object list is not always correctly ordered". Upstream's compare_items
+     * (obj-util.c) is not a strict weak order for qsort, so the list can come out
+     * unstable. The port's comparator IS a lexicographic strict weak order feeding
+     * a STABLE Array.sort, so ties keep collect order - but two distinct entries at
+     * equal distance are still formally equivalent. This adds a deterministic
+     * geometric total key (nearer-to-top first, then leftmost), making the order a
+     * strict TOTAL order that holds even under a non-stable sort. PR #4668 was
+     * closed unmerged, so there is no accepted upstream fix to port instead.
+     *
+     * Total order, so it is a legal comparator: antisymmetric by construction
+     * (Math.sign of a difference) and transitive (lexicographic on dy then dx).
+     */
     hooks.objectListTiebreak = (a, b): number =>
       Math.sign(a.dy - b.dy) || Math.sign(a.dx - b.dx);
-  }
 
-  /*
-   * #4510 "Duplicate artifacts". The shared ArtifactState already makes
-   * duplication impossible by construction for freshly-selected artifacts (the
-   * selection loop skips any created one). This closes the remaining window: an
-   * object handed to make_artifact that ALREADY carries an artifact skips that
-   * scan, so committing it again would copy the artifact data and re-mark it
-   * created a second time. Refusing makes ArtifactState the single source of
-   * truth. Faithful 4.2.6 commits it.
-   *
-   * RNG-FREE, as the hook requires: a pure read of the created flag core passes
-   * in. Core refuses BEFORE copy_artifact_data draws, so the veto changes the
-   * outcome without half-drawing.
-   */
-  if (flags["bugfix.duplicateArtifact"] === true) {
+    /*
+     * #4510 "Duplicate artifacts". The shared ArtifactState already makes
+     * duplication impossible by construction for freshly-selected artifacts (the
+     * selection loop skips any created one). This closes the remaining window: an
+     * object handed to make_artifact that ALREADY carries an artifact skips that
+     * scan, so committing it again would copy the artifact data and re-mark it
+     * created a second time. Refusing makes ArtifactState the single source of
+     * truth. Faithful 4.2.6 commits it.
+     *
+     * RNG-FREE, as the hook requires: a pure read of the created flag core passes
+     * in. Core refuses BEFORE copy_artifact_data draws, so the veto changes the
+     * outcome without half-drawing.
+     */
     hooks.artifactCommit = (_aidx, alreadyCreated): boolean => !alreadyCreated;
   }
 
   /*
+   * bugfix.levelGeneration - anything that changes the LAYOUT a player walks
+   * around in. Kept separate so a player who wants faithful layout is not forced
+   * to also give up the cosmetic / bookkeeping fixes.
+   *
    * "Always a reachable up and down staircase" - upstream can seal a staircase
    * inside a vault it never tunnelled into (measured 10.2% of floors, usually the
    * up stair). See stairs.ts for the defect, the measurement, and why this is a
@@ -137,20 +165,9 @@ export default {
    * level: a floor that needed no repair is bit-identical to one generated with
    * no mod at all. Returning false rejects the level and cave_generate re-rolls.
    */
-  if (flags["bugfix.stairsReachable"] === true) {
+  if (flags["bugfix.levelGeneration"] === true) {
     hooks.levelGenerated = (gen, quest): boolean =>
       ensureStairsReachable(gen as Gen, quest, core);
-  }
-
-  /*
-   * "Misc. string fixes": upstream's own cosmetic string warts, corrected at the
-   * host's single message sink so every msg()/msgt() in core and the shell is
-   * covered by one rule. Identity for anything not in the table (strings.ts), and
-   * an exact-match table on purpose - messages arrive interpolated, so a general
-   * rewrite would edit inscriptions and names the player typed.
-   */
-  if (flags["bugfix.miscStrings"] === true) {
-    hooks.messageText = (raw): string => miscStringFix(raw);
   }
 
   return hooks;

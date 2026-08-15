@@ -1,5 +1,5 @@
 /**
- * "Always a reachable up and down staircase" (bugfix.stairsReachable) - the
+ * "Always a reachable up and down staircase" (bugfix.levelGeneration) - the
  * bug-fixes mod's level repair, and the mod's own code. Core has no part of it.
  *
  * THE DEFECT. Upstream 4.2.6 makes no reachability promise and really does

@@ -25,16 +25,16 @@ still be core shipping the fix; this ships nothing.
 
 ## What it fixes
 
-| Toggle | Upstream issue | What it does |
-|---|---|---|
-| **Unique kill history** (`bugfix.uniqueKillHistory`) | [#4245](https://github.com/angband/angband/issues/4245) | A unique reached again through a shape-change or projection death path logs a second "Killed X" entry. Drops the duplicate. |
-| **Save noise and scent** (`bugfix.noiseScentSave`) | [#4605](https://github.com/angband/angband/issues/4605) | The noise and scent heatmaps are transient upstream, so monsters track you differently after a reload than they would have without one. Writes them to the save. |
-| **Object list order** (`bugfix.objectListOrder`) | [#4664](https://github.com/angband/angband/issues/4664) | Upstream's `compare_items` is not a strict weak order, so the list can come out unstable. Adds a deterministic geometric tiebreak — nearer-to-top first, then leftmost. PR #4668 was closed unmerged, so there is no accepted upstream fix to port instead. |
-| **Duplicate artifacts** (`bugfix.duplicateArtifact`) | [#4510](https://github.com/angband/angband/issues/4510) | An object handed to `make_artifact` that already carries an artifact skips the created-scan, so committing it again copies the data and marks it created twice. Refuses, making the artifact state the single source of truth. |
-| **Reachable staircases** (`bugfix.stairsReachable`) | — | `alloc_stairs` does not exclude vault interiors and `ensure_connectedness` runs with `allow_vault_disconnect` at five of its six sites, so a vault the tunneller never joined can swallow a staircase. **Measured on this port with the fix off: 53 stranded levels in 520 (10.2%)**, overwhelmingly the up stair, 37 of them inside `SQUARE_VAULT`. Places one reachable replacement, as close to the stranded original as the rules allow. |
-| **Misc. string fixes** (`bugfix.miscStrings`) | — | Upstream's own cosmetic message warts, corrected at the host's single message sink. An exact-match table on purpose: messages arrive already interpolated, so a general rewrite would edit inscriptions and names you typed. |
+One player-facing toggle per **class** of fix — not one per atomic fix. A player
+can reason about each class without reading engine code.
 
-All six default to on **once the mod is enabled** — which is not the same as on.
+| Toggle | What it covers | What it does |
+|---|---|---|
+| **Text and history** (`bugfix.textAndHistory`) | [#4245](https://github.com/angband/angband/issues/4245); misc. strings | What the game writes down or says — no game state changes. Drops a duplicate "Killed X" history entry when a unique is reached again through a shape-change or projection death path. Corrects upstream's own cosmetic message warts at the host's single message sink (exact-match table on purpose: messages arrive already interpolated, so a general rewrite would edit inscriptions and names you typed). |
+| **State integrity** (`bugfix.stateIntegrity`) | [#4605](https://github.com/angband/angband/issues/4605), [#4664](https://github.com/angband/angband/issues/4664), [#4510](https://github.com/angband/angband/issues/4510) | The game's own bookkeeping staying consistent with itself, including across a save and reload. Writes the noise and scent heatmaps to the save so monsters track you identically after a reload. Adds a deterministic geometric tiebreak to the floor object list — nearer-to-top first, then leftmost — because upstream's `compare_items` is not a strict weak order. Refuses to commit an object that already carries a created artifact a second time. |
+| **Level generation** (`bugfix.levelGeneration`) | reachable staircases | Anything that changes the layout a player walks around in — kept separate so a player who wants faithful layout is not forced to also give up the text and bookkeeping fixes. `alloc_stairs` does not exclude vault interiors and `ensure_connectedness` runs with `allow_vault_disconnect` at five of its six sites, so a vault the tunneller never joined can swallow a staircase. **Measured on this port with the fix off: 53 stranded levels in 520 (10.2%)**, overwhelmingly the up stair, 37 of them inside `SQUARE_VAULT`. Places one reachable replacement, as close to the stranded original as the rules allow. |
+
+All three default to on **once the mod is enabled** — which is not the same as on.
 
 ### The staircase fix draws no randomness, and that is load-bearing
 
@@ -55,8 +55,8 @@ Two files: `manifest.json` and `plugin.js`. Any of:
 - **A folder** — clone this repository into your mods directory, or point the browser
   build at it with **Load mod folder**.
 
-`plugin.js` is generated from `plugin.ts`, `stairs.ts` and `strings.ts` in this
-repository, bundled into one module. It is committed because
+`plugin.js` is generated from `plugin.ts`, `migrate.ts`, `stairs.ts` and
+`strings.ts` in this repository, bundled into one module. It is committed because
 that is what an install fetches. Edit the source, not this file — and if you are
 reading it to decide whether to trust it, that is exactly why it ships unminified.
 

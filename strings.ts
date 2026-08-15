@@ -1,5 +1,5 @@
 /**
- * "Misc. string fixes" (bugfix.miscStrings) - cosmetic corrections to the text
+ * "Misc. string fixes" (bugfix.textAndHistory) - cosmetic corrections to the text
  * Angband 4.2.6 itself ships, and the bug-fixes mod's own code. Core keeps
  * upstream's wording EXACTLY; nothing here is compiled into it.
  *

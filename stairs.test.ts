@@ -170,7 +170,7 @@ function makeDeps(): GenDeps {
 /** GenDeps with THIS MOD's levelGenerated hook installed, as the game installs it. */
 function fixDeps(): GenDeps {
   const deps = makeDeps();
-  deps.hooks = bugFixesHooks({ "bugfix.stairsReachable": true });
+  deps.hooks = bugFixesHooks({ "bugfix.levelGeneration": true });
   return deps;
 }
 
@@ -280,7 +280,7 @@ function onePocketLevel(): Gen {
   return g;
 }
 
-describe("bugfix.stairsReachable: the repair itself", () => {
+describe("bugfix.levelGeneration: the repair itself", () => {
   it("repairs a level whose only up staircase is sealed inside a vault", () => {
     const g = sealedPocketLevel();
     const before = walkFrom(g.c, g.playerSpot as Loc);
@@ -380,7 +380,7 @@ describe("bugfix.stairsReachable: the repair itself", () => {
   });
 });
 
-describe("bugfix.stairsReachable: real generated levels", () => {
+describe("bugfix.levelGeneration: real generated levels", () => {
   /**
    * Measured stranded levels in FAITHFUL core: every staircase of at least one
    * direction sealed away from the player, mostly inside a vault. Core's
@@ -433,7 +433,7 @@ describe("bugfix.stairsReachable: real generated levels", () => {
   }, 30_000);
 });
 
-describe("bugfix.stairsReachable: through a real game (startGame -> modHooks)", () => {
+describe("bugfix.levelGeneration: through a real game (startGame -> modHooks)", () => {
   /*
    * The end-to-end guard on the plumbing: the host installs this mod's hooks as
    * GameState.modHooks, and the session must hand them to cave_generate. No unit
@@ -448,7 +448,7 @@ describe("bugfix.stairsReachable: through a real game (startGame -> modHooks)", 
     [40, 1100361, "down"],
   ];
 
-  const ALL_ON: ModHooks = bugFixesHooks({ "bugfix.stairsReachable": true });
+  const ALL_ON: ModHooks = bugFixesHooks({ "bugfix.levelGeneration": true });
 
   it("a character born on one of those floors arrives on a repaired one", () => {
     for (const [depth, seed] of STRANDED) {
@@ -462,7 +462,7 @@ describe("bugfix.stairsReachable: through a real game (startGame -> modHooks)", 
      * stopped running would still pass, because "not stranded" would be true of
      * the faithful level too. `{}` is what an enabled mod with this patch
      * switched off contributes - no hook at all. */
-    const off = bugFixesHooks({ "bugfix.stairsReachable": false });
+    const off = bugFixesHooks({ "bugfix.levelGeneration": false });
     expect(off.levelGenerated).toBeUndefined();
     for (const [depth, seed, dirs] of STRANDED) {
       const { state } = startGame(pack, { seed, depth, modHooks: off });
