@@ -1,42 +1,6 @@
 // bug-fixes - generated from plugin.ts by neo-angband-mod-build
 // (@rpgm-tools/neo-angband-mod-sdk). Edit the TypeScript source, not this file.
 
-// migrate.ts
-var BUGFIX_SAVE_SCHEMA = 1;
-var SCHEMA0_TEXT_AND_HISTORY = [
-  "bugfix.uniqueKillHistory",
-  "bugfix.miscStrings"
-];
-var SCHEMA0_STATE_INTEGRITY = [
-  "bugfix.noiseScentSave",
-  "bugfix.objectListOrder",
-  "bugfix.duplicateArtifact"
-];
-var SCHEMA0_LEVEL_GENERATION = ["bugfix.stairsReachable"];
-function foldClassFlag(values) {
-  return values.some((v) => v === true);
-}
-function readOldFlag(data, flag) {
-  return data[flag] === true;
-}
-function migrateBugFixBagData(data, fromSchema) {
-  if (fromSchema >= BUGFIX_SAVE_SCHEMA) {
-    return data ?? {};
-  }
-  const old = data !== null && typeof data === "object" && !Array.isArray(data) ? data : {};
-  return {
-    "bugfix.textAndHistory": foldClassFlag(
-      SCHEMA0_TEXT_AND_HISTORY.map((f) => readOldFlag(old, f))
-    ),
-    "bugfix.stateIntegrity": foldClassFlag(
-      SCHEMA0_STATE_INTEGRITY.map((f) => readOldFlag(old, f))
-    ),
-    "bugfix.levelGeneration": foldClassFlag(
-      SCHEMA0_LEVEL_GENERATION.map((f) => readOldFlag(old, f))
-    )
-  };
-}
-
 // stairs.ts
 function stairWalkable(c, grid) {
   return c.isPassable(grid) || c.isDoor(grid) || c.isRubble(grid);
@@ -153,15 +117,6 @@ function miscStringFix(text) {
 // plugin.ts
 var plugin_default = {
   api: 1,
-  /**
-   * Host seam: rewrite this mod's save bag when saveSchema has advanced.
-   * Delegates to migrateBugFixBagData so tests can drive the same function
-   * through migrateModBag without inventing a second path. The host also
-   * hands a plugin context as a third argument; this migrator does not use it.
-   */
-  migrateBag(data, fromSchema, _ctx) {
-    return migrateBugFixBagData(data, fromSchema);
-  },
   hooks(ctx) {
     const { flags, core } = ctx;
     const hooks = {};

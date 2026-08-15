@@ -52,7 +52,6 @@
  */
 
 import type { Gen, ModHooks } from "@rpgm-tools/neo-angband-core";
-import { migrateBugFixBagData } from "./migrate";
 import { ensureStairsReachable, type StairsCore } from "./stairs";
 import { miscStringFix } from "./strings";
 
@@ -68,16 +67,6 @@ interface HookCtx {
 
 export default {
   api: 1,
-
-  /**
-   * Host seam: rewrite this mod's save bag when saveSchema has advanced.
-   * Delegates to migrateBugFixBagData so tests can drive the same function
-   * through migrateModBag without inventing a second path. The host also
-   * hands a plugin context as a third argument; this migrator does not use it.
-   */
-  migrateBag(data: unknown, fromSchema: number, _ctx?: unknown): unknown {
-    return migrateBugFixBagData(data, fromSchema);
-  },
 
   hooks(ctx: HookCtx): ModHooks {
   const { flags, core } = ctx;
