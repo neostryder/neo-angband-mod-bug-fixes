@@ -387,20 +387,29 @@ describe("bugfix.levelGeneration: real generated levels", () => {
    * gen/gen.test.ts keeps the CONTROL half - that these still strand with no mod
    * loaded - and this is the fix half, on the same seeds through the same
    * generator, differing only in the hook.
+   *
+   * RE-PINNED 2026-08-16 against core/content 0.19.0 (#123, #144's content bump):
+   * every seed below is fresh, found by scanning and labelled by strandedDirs
+   * itself, not carried over or guessed. No depth-1 seed survived a ~44,000-seed
+   * scan (10001-14000, 14001-44000, plus 4000 more via the ratchet scan below) -
+   * 4.2.6's own gamedata apparently makes a depth-1 stranding vanishingly rare
+   * under this core, where the old (edited) gamedata's single example, 501016,
+   * no longer strands at all. Dropped rather than forced; the count that depth
+   * held moved to depth 60.
    */
   const STRANDED: readonly [number, number, string][] = [
-    [1, 501016, "both directions sealed off from the player's region"],
-    [20, 520009, "both"],
-    [20, 520004, "single up stair unreachable"],
-    [40, 400017, "up stair sealed off"],
-    [40, 400038, "up stair sealed off"],
-    [40, 400121, "both"],
-    [50, 500021, "up stair sealed off"],
-    [50, 500130, "both"],
-    [50, 500131, "both"],
-    [50, 500217, "both"],
-    [60, 600181, "down stair sealed off"],
-    [20, 520037, "both"],
+    [20, 200435, "up"],
+    [20, 200563, "up"],
+    [20, 201097, "up"],
+    [40, 400792, "down+up"],
+    [40, 402102, "up"],
+    [40, 402149, "up"],
+    [50, 500152, "up"],
+    [50, 500255, "up"],
+    [50, 500314, "up"],
+    [50, 501002, "up"],
+    [60, 600148, "up"],
+    [60, 600399, "up"],
   ];
 
   it("repairs every level faithful core strands", () => {
@@ -438,14 +447,19 @@ describe("bugfix.levelGeneration: through a real game (startGame -> modHooks)", 
    * The end-to-end guard on the plumbing: the host installs this mod's hooks as
    * GameState.modHooks, and the session must hand them to cave_generate. No unit
    * test on the repair can catch that wire coming loose. These birth seeds were
-   * measured stranded through startGame itself and cover both directions,
-   * including a down-only case - the direction that actually blocks descent.
+   * measured stranded through startGame itself.
+   *
+   * RE-PINNED 2026-08-16 against core/content 0.19.0 (#123): all four old seeds
+   * came back healthy through startGame (birth draws RNG before level generation,
+   * so a raw-generator seed - even 400792 above - does not necessarily strand the
+   * same way here; checked directly, it does not). 500406 covers the down-blocks-
+   * descent case the old table specifically called out.
    */
   const STRANDED: readonly [number, number, string][] = [
-    [40, 740014, "down+up"],
-    [50, 750080, "up"],
-    [60, 1300081, "down+up"],
-    [40, 1100361, "down"],
+    [40, 400650, "up"],
+    [50, 500406, "down+up"],
+    [60, 600044, "up"],
+    [40, 401185, "up"],
   ];
 
   const ALL_ON: ModHooks = bugFixesHooks({ "bugfix.levelGeneration": true });
@@ -544,9 +558,14 @@ describe("DETERMINISM RATCHET: a level needing no repair is bit-identical", () =
 
   it("and the repaired minority DOES differ - so the ratchet is not vacuous", () => {
     /* The other side of the same coin: if the fingerprints matched here too, the
-     * comparison above would be proving nothing (e.g. a hook that never ran). */
-    const faithful = generateLevel(new Rng(501016), 1, makeDeps());
-    const repaired = generateLevel(new Rng(501016), 1, fixDeps());
+     * comparison above would be proving nothing (e.g. a hook that never ran).
+     *
+     * RE-PINNED 2026-08-16 (#123): depth 1 no longer strands under core/content
+     * 0.19.0 in any seed found by a ~44,000-seed scan, so the fixed depth moved
+     * to 40 with 400792 - the same seed the STRANDED table above uses, verified
+     * stranded "down+up" under faithful core. */
+    const faithful = generateLevel(new Rng(400792), 40, makeDeps());
+    const repaired = generateLevel(new Rng(400792), 40, fixDeps());
     expect(strandedDirs(faithful.c, faithful.playerSpot as Loc).length).toBeGreaterThan(0);
     expect(strandedDirs(repaired.c, repaired.playerSpot as Loc)).toEqual([]);
     expect(fingerprint(repaired)).not.toBe(fingerprint(faithful));
