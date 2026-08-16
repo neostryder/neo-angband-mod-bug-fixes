@@ -149,8 +149,13 @@ describe("text-corrections", () => {
 
       expect(claims(after), `replacement still claims two hands: ${after}`).toEqual([]);
 
-      /* A replacement is a restatement, not a new item: same opening clause. */
-      expect(after.slice(0, 24)).toBe(before.slice(0, 24));
+      /*
+       * A replacement is a restatement, not a new item: same opening clause.
+       * 20 chars, not 24 - Pike's two-hand clause starts right after "spear,"
+       * (common prefix 22), so 24 clips into the diverging word and fails for
+       * that row alone. 20 stays under all four rows' shared opening (22-53).
+       */
+      expect(after.slice(0, 20)).toBe(before.slice(0, 20));
       expect(after.length).toBeLessThan(before.length);
     });
   }
