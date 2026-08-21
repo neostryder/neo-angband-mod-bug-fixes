@@ -9,11 +9,11 @@ Angband 4.2.6 is.
 
 ## Why this is a mod and not a better port
 
-Neo Angband is an exact-parity port. Its rule, in the owner's words: *"We can't fix
-bugs in the port. Those will belong in the bug fixes mod... Core must retain all warts
-of the reference code."* A port that quietly fixed things would stop being a port,
-and worse, you could never tell which of its behaviours were Angband's and which were
-someone's opinion.
+Neo Angband is an exact-parity port: bugs inherited from the reference code are
+out of scope for the port itself and belong in this mod instead, while core
+retains every wart of the reference code on purpose. A port that quietly fixed
+things would stop being a port, and worse, you could never tell which of its
+behaviours were Angband's and which were someone's opinion.
 
 So the engine reproduces each of these faults, on purpose, and the engine's own test
 suite has CONTROL tests pinning them: move one of these fixes back into core and the

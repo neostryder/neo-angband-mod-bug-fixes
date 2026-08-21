@@ -123,7 +123,7 @@ describe("the bug-fixes mod's Misc. string fixes (docs/modding/BUG_FIXES.md #14)
       expect(wrong).toMatch(/^[a-z]+$/u);
       expect(right).toMatch(/^[a-z]+$/u);
     }
-    /* None of them is a correction we actually had to make - the table above is
+    /* None of them is a correction that actually had to be made - the table above is
      * spacing only. If a sweep ever finds one, this stops being true. */
     const table = Object.keys(MISC_STRING_CORRECTIONS).join(" ").toLowerCase();
     for (const [wrong] of MISSPELLINGS) expect(table).not.toContain(wrong);

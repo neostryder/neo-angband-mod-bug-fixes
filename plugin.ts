@@ -80,7 +80,7 @@ export default {
     /*
      * #4245 "Killing a unique twice logs it twice". A unique reached again through
      * a shape-change or projection death path logs a second "Killed X" entry.
-     * Faithful core logs every entry it reaches, duplicates included; core tells us
+     * Faithful core logs every entry it reaches, duplicates included; core reports
      * whether THIS entry is a duplicate and holds no opinion about it.
      */
     hooks.historyAdd = (entry): boolean => !entry.duplicate;
