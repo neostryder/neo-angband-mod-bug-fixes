@@ -146,7 +146,7 @@ export default {
    * to also give up the cosmetic / bookkeeping fixes.
    *
    * "Always a reachable up and down staircase" - upstream can seal a staircase
-   * inside a vault it never tunnelled into (measured 10.2% of floors, usually the
+   * inside a vault it never tunnelled into (measured 0.15% of floors, usually the
    * up stair). See stairs.ts for the defect, the measurement, and why this is a
    * mod rather than a port fix.
    *
