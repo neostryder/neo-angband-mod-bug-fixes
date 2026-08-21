@@ -7,11 +7,25 @@
  * does not exclude vault interiors, while ensure_connectedness runs with
  * allow_vault_disconnect = true at five of its six sites (gen-cave.c:1271, 2836,
  * 3083, 3693, 3953; only 3464 passes false), so a vault the tunneller never
- * joined can swallow a staircase. Measured on this port with the repair off: 53
- * stranded levels in 520 (10.2%), overwhelmingly the UP stair, because a level
- * gets 3-4 down stairs against only 1-2 up (gen-cave.c:958 -> rand_range(3,4) /
- * rand_range(1,2)), so a single bad roll strands the floor. 37 of the 53 had the
- * orphaned stair inside SQUARE_VAULT.
+ * joined can swallow a staircase.
+ *
+ * HOW OFTEN. Core measured it on 2026-08-06 over 15,000 levels, 3,000 each at
+ * depths 1/20/40/50/60: 22 stranded, 0.15%, overwhelmingly the UP stair because
+ * a level gets 3-4 down stairs against only 1-2 up (gen-cave.c:958 ->
+ * rand_range(3,4) / rand_range(1,2)), so one bad roll strands the floor. All 22
+ * carried the mechanism's signature: the sealed stair is SQUARE_VAULT and the
+ * region it is sealed into is vault to the last grid. Confirmed here at core
+ * 0.24.0 on a fresh sweep of 520 levels (52 seeds from a fixed base at each of
+ * depths 5 through 90): 4 stranded, all four the up stair.
+ *
+ * THIS FILE USED TO SAY 10.2%, and the correction is worth knowing rather than
+ * just deleting. That figure was "53 stranded levels in 520, 37 of the 53 inside
+ * SQUARE_VAULT", and it was real - but the non-vault majority was the PORT's own
+ * build_streamer predicate bricking up secret doors, not upstream behaviour. That
+ * defect is fixed in core's gen/cave.ts, and the same sweep run against the old
+ * predicate splits 137 stranded into 33 upstream and 104 port defect. So this
+ * section repairs a rare inherited wart, not a common one, and a rate quoted here
+ * has to be re-measured after a generator change rather than carried forward.
  *
  * WHY IT IS A MOD AND NOT A PORT FIX. It was briefly a core guarantee (2026-07-25)
  * and was withdrawn the next day once the C was confirmed to behave this way:
