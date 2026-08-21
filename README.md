@@ -1,4 +1,4 @@
-# bug-fixes — an unofficial patch set
+# bug-fixes: an unofficial patch set
 
 Fixes for bugs in upstream Angband, for
 [Neo Angband](https://github.com/neostryder/neo-angband), as a mod.
@@ -11,7 +11,7 @@ Angband 4.2.6 is.
 
 Neo Angband is an exact-parity port. Its rule, in the owner's words: *"We can't fix
 bugs in the port. Those will belong in the bug fixes mod... Core must retain all warts
-of the reference code."* A port that quietly fixed things would stop being a port —
+of the reference code."* A port that quietly fixed things would stop being a port,
 and worse, you could never tell which of its behaviours were Angband's and which were
 someone's opinion.
 
@@ -25,22 +25,22 @@ still be core shipping the fix; this ships nothing.
 
 ## What it fixes
 
-One player-facing toggle per **class** of fix — not one per atomic fix. A player
+One player-facing toggle per **class** of fix, not one per atomic fix. A player
 can reason about each class without reading engine code.
 
 | Toggle | What it covers | What it does |
 |---|---|---|
-| **Text and history** (`bugfix.textAndHistory`) | [#4245](https://github.com/angband/angband/issues/4245); misc. strings | What the game writes down or says — no game state changes. Drops a duplicate "Killed X" history entry when a unique is reached again through a shape-change or projection death path. Corrects upstream's own cosmetic message warts at the host's single message sink (exact-match table on purpose: messages arrive already interpolated, so a general rewrite would edit inscriptions and names you typed). |
-| **State integrity** (`bugfix.stateIntegrity`) | [#4605](https://github.com/angband/angband/issues/4605), [#4664](https://github.com/angband/angband/issues/4664), [#4510](https://github.com/angband/angband/issues/4510) | The game's own bookkeeping staying consistent with itself, including across a save and reload. Writes the noise and scent heatmaps to the save so monsters track you identically after a reload. Adds a deterministic geometric tiebreak to the floor object list — nearer-to-top first, then leftmost — because upstream's `compare_items` is not a strict weak order. Refuses to commit an object that already carries a created artifact a second time. |
-| **Level generation** (`bugfix.levelGeneration`) | reachable staircases | Anything that changes the layout a player walks around in — kept separate so a player who wants faithful layout is not forced to also give up the text and bookkeeping fixes. `alloc_stairs` does not exclude vault interiors and `ensure_connectedness` runs with `allow_vault_disconnect` at five of its six sites, so a vault the tunneller never joined can swallow a staircase. **Measured on this port with the fix off: 53 stranded levels in 520 (10.2%)**, overwhelmingly the up stair, 37 of them inside `SQUARE_VAULT`. Places one reachable replacement, as close to the stranded original as the rules allow. |
+| **Text and history** (`bugfix.textAndHistory`) | [#4245](https://github.com/angband/angband/issues/4245); misc. strings | What the game writes down or says, with no game state changes. Drops a duplicate "Killed X" history entry when a unique is reached again through a shape-change or projection death path. Corrects upstream's own cosmetic message warts at the host's single message sink (exact-match table on purpose: messages arrive already interpolated, so a general rewrite would edit inscriptions and names you typed). |
+| **State integrity** (`bugfix.stateIntegrity`) | [#4605](https://github.com/angband/angband/issues/4605), [#4664](https://github.com/angband/angband/issues/4664), [#4510](https://github.com/angband/angband/issues/4510) | The game's own bookkeeping staying consistent with itself, including across a save and reload. Writes the noise and scent heatmaps to the save so monsters track you identically after a reload. Adds a deterministic geometric tiebreak to the floor object list (nearer-to-top first, then leftmost) because upstream's `compare_items` is not a strict weak order. Refuses to commit an object that already carries a created artifact a second time. |
+| **Level generation** (`bugfix.levelGeneration`) | reachable staircases | Anything that changes the layout a player walks around in, kept separate so a player who wants faithful layout is not forced to also give up the text and bookkeeping fixes. `alloc_stairs` does not exclude vault interiors and `ensure_connectedness` runs with `allow_vault_disconnect` at five of its six sites, so a vault the tunneller never joined can swallow a staircase. **Measured on this port with the fix off: 53 stranded levels in 520 (10.2%)**, overwhelmingly the up stair, 37 of them inside `SQUARE_VAULT`. Places one reachable replacement, as close to the stranded original as the rules allow. |
 
-All three default to on **once the mod is enabled** — which is not the same as on.
+All three default to on **once the mod is enabled**, which is not the same as on.
 
 ### The staircase fix draws no randomness, and that is load-bearing
 
 It runs on every generated level, so if it took a single RNG draw every seed would stop
-reproducing its dungeon. It takes none. A level that already satisfies the invariant —
-the overwhelming majority — is bit-identical to one generated with no mod at all, and
+reproducing its dungeon. It takes none. A level that already satisfies the invariant
+(the overwhelming majority) is bit-identical to one generated with no mod at all, and
 only the stranded minority is touched, by one grid. This repository's stairs tests
 ratchet that against real generated levels rather than trusting it.
 
@@ -48,16 +48,16 @@ ratchet that against real generated levels rather than trusting it.
 
 Two files: `manifest.json` and `plugin.js`. Any of:
 
-- **In the game** — Mods → **Install a mod...**, which fetches this repository at a
+- **In the game** - Mods → **Install a mod...**, which fetches this repository at a
   release tag and checks every file against a SHA-256 that ships inside the game. A
   replaced tag or an intercepted download fails rather than runs. This is the path that
   works in every browser, including the ones with no directory picker.
-- **A folder** — clone this repository into your mods directory, or point the browser
+- **A folder** - clone this repository into your mods directory, or point the browser
   build at it with **Load mod folder**.
 
 `plugin.js` is generated from `plugin.ts`, `stairs.ts` and `strings.ts` in this
 repository, bundled into one module. It is committed because
-that is what an install fetches. Edit the source, not this file — and if you are
+that is what an install fetches. Edit the source, not this file, and if you are
 reading it to decide whether to trust it, that is exactly why it ships unminified.
 
 ## Working on it
@@ -65,7 +65,7 @@ reading it to decide whether to trust it, that is exactly why it ships unminifie
 The source lives here now, and so do the tests. They boot a **real game** against the
 published engine (`@rpgm-tools/neo-angband-core`) rather than a fake, because a
 staircase-reachability fix proven against a hand-built cave is a fix proven against a
-fixture — the staircase tests generate real levels at real depths.
+fixture: the staircase tests generate real levels at real depths.
 
 ```bash
 npm install
@@ -76,7 +76,7 @@ npm run verify
 ```
 
 That typechecks, runs the tests, and confirms the committed `plugin.js` is a current
-build of the source — the last one matters more than it looks. The catalogue's SHA-256
+build of the source, and the last one matters more than it looks. The catalogue's SHA-256
 is taken **from** `plugin.js`, so a stale artefact verifies perfectly and is the file
 players actually run.
 
@@ -136,7 +136,7 @@ in the main repository is the complete answer.
 
 ## Licence
 
-Same dual licence as Neo Angband and Angband — GPL v2 or the Angband licence. See
+Same dual licence as Neo Angband and Angband: GPL v2 or the Angband licence. See
 [LICENSE.md](LICENSE.md).
 
 ## Credits
