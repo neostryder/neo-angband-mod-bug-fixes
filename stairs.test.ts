@@ -454,12 +454,32 @@ describe("bugfix.levelGeneration: through a real game (startGame -> modHooks)", 
    * so a raw-generator seed - even 400792 above - does not necessarily strand the
    * same way here; checked directly, it does not). 500406 covers the down-blocks-
    * descent case the old table specifically called out.
+   *
+   * RE-PINNED AGAIN 2026-08-21 against core/content 0.24.0, and the whole table
+   * moved rather than one row. #123 predicted this recurrence; what it did not say
+   * is that only the CONTROL below can detect it. Two of the four seeds came back
+   * HEALTHY under the newer generator and a third changed direction, and a healthy
+   * floor passes the repair assertion above trivially, so the fix test stayed green
+   * on three rows that had stopped testing anything.
+   *
+   * Each replacement was measured in both directions rather than assumed: stranded
+   * with the section off, fully repaired with it on. Scanned depth by depth, since
+   * the stranded rate differs by depth. The spares, verified the same way, so that
+   * the next reseal does not need the scan again:
+   *
+   *   d40 "up":      400825 401343 401629 402094 402273
+   *   d50 "down+up": 523028 525730
+   *   d60 "up":      600190 600216 600607
+   *
+   * 500406 still strands, but as "up" alone rather than "down+up", so it no longer
+   * covers the down-blocks-descent case it was chosen for; 501599 does, which is
+   * why the row moved rather than having its label corrected.
    */
   const STRANDED: readonly [number, number, string][] = [
-    [40, 400650, "up"],
-    [50, 500406, "down+up"],
-    [60, 600044, "up"],
-    [40, 401185, "up"],
+    [40, 400077, "up"],
+    [50, 501599, "down+up"],
+    [60, 600083, "up"],
+    [40, 400825, "up"],
   ];
 
   const ALL_ON: ModHooks = bugFixesHooks({ "bugfix.levelGeneration": true });
