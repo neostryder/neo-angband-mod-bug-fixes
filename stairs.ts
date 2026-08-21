@@ -13,12 +13,12 @@
  * rand_range(1,2)), so a single bad roll strands the floor. 37 of the 53 had the
  * orphaned stair inside SQUARE_VAULT.
  *
- * WHY IT IS A MOD AND NOT A PORT FIX. It was briefly a core guarantee (owner
- * ruling 2026-07-25) and was withdrawn the next day once the owner learned the C
- * behaves this way: "We can't fix bugs in the port. Those will belong in the bug
- * fixes mod... Core must retain all warts of the reference code." core's
- * gen/gen.test.ts keeps a CONTROL test pinning the wart, so moving this back
- * into core fails the suite and says why.
+ * WHY IT IS A MOD AND NOT A PORT FIX. It was briefly a core guarantee (2026-07-25)
+ * and was withdrawn the next day once the C was confirmed to behave this way:
+ * bugs inherited from the reference code are out of scope for the port itself and
+ * belong in this mod instead, while core retains every wart of the reference code
+ * on purpose. core's gen/gen.test.ts keeps a CONTROL test pinning the wart, so
+ * moving this back into core fails the suite and says why.
  *
  * RNG-FREE, which the levelGenerated hook requires and this file must not break.
  * The repair takes no draws at all, so a level that already satisfies the
