@@ -8,6 +8,15 @@ An entry has to matter to somebody running the mod. Documentation wording,
 internal refactoring and test-only additions are not recorded here. Bug fixes
 are, however small, which for this mod is most of the file.
 
+## 0.16.2
+
+### Fixed
+
+- **`manifest.json`'s own Level generation toggle still cited the old 10% figure.**
+  0.16.1 corrected the README, `stairs.ts` and `plugin.ts` to the engine-measured
+  0.15%, but missed the same sentence in the manifest description the player
+  actually reads when deciding whether to turn the toggle on.
+
 ## 0.16.1
 
 ### Fixed

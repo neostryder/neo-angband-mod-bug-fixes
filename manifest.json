@@ -1,7 +1,7 @@
 {
   "id": "bug-fixes",
   "name": "Bug Fixes (unofficial patch set)",
-  "version": "0.16.1",
+  "version": "0.16.2",
   "shape": "content",
   "facets": [
     "content",
@@ -31,7 +31,7 @@
     {
       "flag": "bugfix.levelGeneration",
       "title": "Level generation fixes",
-      "description": "Anything that changes the layout a player walks around in. Vanilla level generation can seal a staircase inside a vault it never tunnelled into, leaving about 10% of floors with no walkable staircase in one direction (usually up, since a level gets only 1-2 up stairs but 3-4 down). This adds one reachable staircase on such a floor. It changes the layout of the levels it repairs, so a character played with this on is not layout-identical to one played without it - kept separate so a player who wants faithful layout is not forced to also give up the text and bookkeeping fixes.",
+      "description": "Anything that changes the layout a player walks around in. Vanilla level generation can seal a staircase inside a vault it never tunnelled into. Measured over 15,000 levels: 0.15% stranded, overwhelmingly the up stair, since a level gets only 1-2 up stairs but 3-4 down. This adds one reachable staircase on such a floor. It changes the layout of the levels it repairs, so a character played with this on is not layout-identical to one played without it - kept separate so a player who wants faithful layout is not forced to also give up the text and bookkeeping fixes.",
       "default": true
     }
   ],
