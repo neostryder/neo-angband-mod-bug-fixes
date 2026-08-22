@@ -1,6 +1,6 @@
 {
   "name": "neo-angband-mod-bug-fixes",
-  "version": "0.16.1",
+  "version": "0.16.2",
   "private": true,
   "description": "Fixes for upstream Angband bugs that Neo Angband's core keeps on purpose, as a mod",
   "license": "GPL-2.0-only",
