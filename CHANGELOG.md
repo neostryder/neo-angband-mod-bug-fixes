@@ -8,6 +8,19 @@ An entry has to matter to somebody running the mod. Documentation wording,
 internal refactoring and test-only additions are not recorded here. Bug fixes
 are, however small, which for this mod is most of the file.
 
+## 0.18.0
+
+### Changed
+
+- **The weapon-lore text corrections (Two-Handed Great Flail, Pike, Trident "of
+  Wrath" and "Mundwine") now honor the Text and history toggle
+  (`bugfix.textAndHistory`) instead of always applying.** They were previously
+  filed under their own section with no flag of its own, on the reasoning that
+  four sentences were too minor to be worth a switch. A player who turns off
+  Text and history now also reverts these four descriptions to upstream's
+  wording, matching every other textual correction this mod makes: whether the
+  game's text is being corrected is one decision, not several.
+
 ## 0.17.0
 
 ### Added

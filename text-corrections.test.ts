@@ -1,5 +1,7 @@
 /**
- * "Text corrections" (section text-corrections).
+ * The weapon-lore text corrections, filed under the "Text and history fixes"
+ * section (bugfix-text-and-history / bugfix.textAndHistory) alongside every
+ * other textual correction this mod makes.
  *
  * ONE TOGGLE PER CLASS OF FIX, not one per fix. A player who wants item
  * descriptions to describe the game they are playing wants all of them; a menu
@@ -95,15 +97,15 @@ const CONTRIB: Record<string, { sections: Record<string, { patches: Record<strin
 describe("text-corrections", () => {
   it("declares the section the contributions are filed under", () => {
     const ids = (manifest.sections ?? []).map((s: { id: string }) => s.id);
-    expect(ids).toContain("text-corrections");
+    expect(ids).toContain("bugfix-text-and-history");
     for (const file of ["object", "artifact"]) {
-      expect(Object.keys(CONTRIB[file]!.sections)).toEqual(["text-corrections"]);
+      expect(Object.keys(CONTRIB[file]!.sections)).toEqual(["bugfix-text-and-history"]);
     }
   });
 
   it("patches exactly the four records it names, and no others", () => {
     const refs = Object.values(CONTRIB).flatMap((c) =>
-      Object.keys(c.sections["text-corrections"]!.patches),
+      Object.keys(c.sections["bugfix-text-and-history"]!.patches),
     );
     expect(refs).toHaveLength(ROWS.length);
     expect(new Set(refs).size).toBe(ROWS.length);
@@ -119,7 +121,7 @@ describe("text-corrections", () => {
       expect(hits).toHaveLength(1);
 
       const ref = `core:${recordKey(row.file, hits[0]!)}`;
-      const patches = CONTRIB[row.file]!.sections["text-corrections"]!.patches;
+      const patches = CONTRIB[row.file]!.sections["bugfix-text-and-history"]!.patches;
       expect(Object.keys(patches)).toContain(ref);
     });
 
@@ -128,7 +130,7 @@ describe("text-corrections", () => {
         Object.entries(row.find).every(([k, v]) => r[k] === v),
       )!;
       const ref = `core:${recordKey(row.file, rec)}`;
-      const replacement = CONTRIB[row.file]!.sections["text-corrections"]!.patches[ref]!;
+      const replacement = CONTRIB[row.file]!.sections["bugfix-text-and-history"]!.patches[ref]!;
 
       const before = (rec.desc as string[]).join("");
       const after = replacement.desc.join("");

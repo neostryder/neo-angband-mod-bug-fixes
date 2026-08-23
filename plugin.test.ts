@@ -218,6 +218,7 @@ describe("the six atomic flags survive the class regroup through rule and sectio
       "bugfix.textAndHistory",
       "bugfix.uniqueKillHistory",
       "bugfix.miscStrings",
+      "text-corrections",
     ]);
   });
 

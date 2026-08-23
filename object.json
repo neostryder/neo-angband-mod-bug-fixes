@@ -1,6 +1,6 @@
 {
   "sections": {
-    "text-corrections": {
+    "bugfix-text-and-history": {
       "patches": {
         "core:hafted--two-handed-great-flail": {
           "desc": [

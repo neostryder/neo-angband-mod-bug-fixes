@@ -79,6 +79,7 @@ describe("lore-text", () => {
       "bugfix.textAndHistory",
       "bugfix.uniqueKillHistory",
       "bugfix.miscStrings",
+      "text-corrections",
     ]);
     expect((manifest.rules ?? []).map((r: { flag: string }) => r.flag)).not.toContain(
       "bugfix.textAndHistory",
