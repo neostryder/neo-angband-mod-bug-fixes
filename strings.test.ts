@@ -88,9 +88,9 @@ describe("the bug-fixes mod's Misc. string fixes (docs/modding/BUG_FIXES.md #14)
      *
      * NUMBER WORDS on purpose. A digit would let "4" match a version string or
      * a line number somewhere else in the sentence. */
-    const rule = manifest.rules.find((r) => r.flag === "bugfix.textAndHistory");
-    expect(rule, "the toggle must exist to be described").toBeDefined();
-    const text = rule!.description;
+    const section = manifest.sections.find((s) => s.flag === "bugfix.textAndHistory");
+    expect(section, "the toggle must exist to be described").toBeDefined();
+    const text = section!.description;
     const words = ["ZERO", "ONE", "TWO", "THREE", "FOUR", "FIVE", "SIX"];
     const count = Object.keys(MISC_STRING_CORRECTIONS).length;
     expect(

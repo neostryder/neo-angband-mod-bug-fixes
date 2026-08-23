@@ -1,0 +1,11 @@
+{
+  "sections": {
+    "bugfix-text-and-history": {
+      "fieldPatches": {
+        "core:priest": [
+          { "op": "set", "path": "book.4.spell.4.name", "value": "Light of Varda" }
+        ]
+      }
+    }
+  }
+}
