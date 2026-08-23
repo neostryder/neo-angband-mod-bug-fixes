@@ -1,7 +1,7 @@
 {
   "id": "bug-fixes",
   "name": "Bug Fixes (unofficial patch set)",
-  "version": "0.16.2",
+  "version": "0.17.0",
   "shape": "content",
   "facets": [
     "content",
@@ -17,12 +17,6 @@
   "description": "Opt-in fixes for bugs in Angband 4.2.6, in the model of an unofficial patch.\n\nEach class of fix is a named toggle, so you can take the set minus any one of them. With this off, core stays faithful to 4.2.6 - bugs included, which is the point of the port.",
   "rules": [
     {
-      "flag": "bugfix.textAndHistory",
-      "title": "Text and history fixes",
-      "description": "What the game writes down or says - no game state changes. Stops a unique re-killed through a shape-change or projection death path from logging a second 'Killed X' history entry (#4245), and applies cosmetic corrections to Angband 4.2.6's own message text. Measured rather than assumed, and it is a smaller list than you might expect: 4.2.6 puts TWO spaces after a sentence almost everywhere, and exactly FOUR messages break that pattern with one (\"The ground shakes! The ceiling caves in!\"), so this normalizes those four UP to the house style. A sweep for misspellings across every msg()/msgt()/get_check() literal found NONE, so spacing really is all there is to fix today. Purely presentational: no message changes meaning, and nothing about gameplay changes.",
-      "default": true
-    },
-    {
       "flag": "bugfix.stateIntegrity",
       "title": "State integrity fixes",
       "description": "The game's own bookkeeping staying consistent with itself, including across a save and reload. Persists the noise and scent heatmaps so monsters track you identically after a save/reload (#4605); gives the floor object list a deterministic total order so equal-distance items never reorder unexpectedly (#4664); and refuses to commit an object that already carries a created artifact a second time (#4510).",
@@ -36,8 +30,6 @@
     }
   ],
   "renamedRuleFlags": {
-    "bugfix.uniqueKillHistory": "bugfix.textAndHistory",
-    "bugfix.miscStrings": "bugfix.textAndHistory",
     "bugfix.noiseScentSave": "bugfix.stateIntegrity",
     "bugfix.objectListOrder": "bugfix.stateIntegrity",
     "bugfix.duplicateArtifact": "bugfix.stateIntegrity",
@@ -49,6 +41,18 @@
       "title": "Text corrections",
       "description": "Item and monster descriptions that say something the game no longer does. One toggle for the whole class, not one per sentence.\n\nToday that is the two-handed weapon lore: Angband 4.2 has a single weapon slot and no two-handed rule - nothing stops you carrying a shield alongside a Pike - but four descriptions still tell you otherwise, left over from a rule the game dropped. This rewrites those four (the Two-Handed Great Flail, the Pike, the Trident 'of Wrath' and 'Mundwine').\n\nText only. Nothing here changes damage, weight, slot or any other number.",
       "default": true
+    },
+    {
+      "id": "bugfix-text-and-history",
+      "flag": "bugfix.textAndHistory",
+      "title": "Text and history fixes",
+      "description": "What the game writes down or says - no game state changes. Stops a unique re-killed through a shape-change or projection death path from logging a second 'Killed X' history entry (#4245), and applies cosmetic corrections to Angband 4.2.6's own message text. It also corrects the Priest spell name from Light of Manwë to Light of Varda and the blessed property's description from gods to Valar. Measured rather than assumed, and it is a smaller list than you might expect: 4.2.6 puts TWO spaces after a sentence almost everywhere, and exactly FOUR messages break that pattern with one (\"The ground shakes! The ceiling caves in!\"), so this normalizes those four UP to the house style. A sweep for misspellings across every msg()/msgt()/get_check() literal found NONE, so spacing really is all there is to fix today. Purely presentational: no message changes meaning, and nothing about gameplay changes.",
+      "default": true,
+      "renamedSectionFlags": [
+        "bugfix.textAndHistory",
+        "bugfix.uniqueKillHistory",
+        "bugfix.miscStrings"
+      ]
     }
   ],
   "repository": "https://github.com/neostryder/neo-angband-mod-bug-fixes"

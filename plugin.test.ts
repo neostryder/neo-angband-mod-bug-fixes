@@ -128,16 +128,18 @@ const CLASS_TO_HOOKS: readonly [string, readonly string[]][] = [
 ];
 
 describe("the bug-fixes mod's entry point", () => {
-  it("matches the manifest: every declared flag maps to its class hooks", () => {
+  it("matches the manifest: every runtime hook class has a declared rule or section flag", () => {
     const manifest = JSON.parse(
       readFileSync(new URL("./manifest.json", import.meta.url), "utf8"),
-    ) as { rules: { flag: string }[] };
-    /* If a rule is added to the manifest without code behind it, the player gets a
-     * toggle that does nothing; if code is added without a rule, they get a change
-     * they cannot switch off. Tie the two together here. */
-    expect(manifest.rules.map((r) => r.flag).sort()).toEqual(
-      CLASS_TO_HOOKS.map(([flag]) => flag).sort(),
-    );
+    ) as { rules: { flag: string }[]; sections: { id: string; flag?: string }[] };
+    /* A content-only section needs no plugin hook, so this is deliberately
+     * one-directional. Code without a declared player toggle would create a
+     * change the player cannot switch off. */
+    const declaredFlags = [
+      ...manifest.rules.map((r) => r.flag),
+      ...manifest.sections.map((s) => s.flag ?? s.id),
+    ];
+    for (const [flag] of CLASS_TO_HOOKS) expect(declaredFlags).toContain(flag);
     expect(Object.keys(ALL_ON).sort()).toEqual(
       CLASS_TO_HOOKS.map(([f]) => f).sort(),
     );
@@ -166,30 +168,28 @@ describe("the bug-fixes mod's entry point", () => {
   });
 });
 
-describe("the six atomic flags survive the class regroup via renamedRuleFlags", () => {
+describe("the six atomic flags survive the class regroup through rule and section renames", () => {
   /*
    * This mod has never written a save-file bag (no `register()`, nothing on
    * `ctx.state.mods["bug-fixes"]`), so it has no business owning a
    * `saveSchema` / `migrateBag` migration - that seam is for a mod's own
    * PERSISTED GAME STATE, and this mod persists none. What actually needed to
-   * survive the six-flags-to-three regroup is PLAYER TOGGLE STATE, which the
-   * host resolves from its own rule-choices store, keyed by flag name - and
-   * the host ships a dedicated, tested mechanism for exactly this ("Renaming a
-   * player-toggleable rule", docs/modding/AUTHORING.md in the engine repo,
-   * which uses this mod as its own worked example): `renamedRuleFlags` in the
-   * manifest, consumed by ModStore.migrateRuleChoices at mod-load time.
+   * survive the six-flags-to-three regroup is PLAYER TOGGLE STATE. The host
+   * resolves rule and section choices from its own store, keyed by flag name.
+   * Four retired rules retain `renamedRuleFlags`; the Text and history rule
+   * became a content section, so its own legacy rule and its two predecessors
+   * use that section's `renamedSectionFlags` instead.
    */
   const manifestRaw = JSON.parse(
     readFileSync(new URL("./manifest.json", import.meta.url), "utf8"),
   ) as {
     rules: { flag: string }[];
+    sections: { id: string; flag?: string; renamedSectionFlags?: string[] }[];
     renamedRuleFlags?: Record<string, string>;
     saveSchema?: number;
   };
 
   const EXPECTED_RENAMES: Readonly<Record<string, string>> = {
-    "bugfix.uniqueKillHistory": "bugfix.textAndHistory",
-    "bugfix.miscStrings": "bugfix.textAndHistory",
     "bugfix.noiseScentSave": "bugfix.stateIntegrity",
     "bugfix.objectListOrder": "bugfix.stateIntegrity",
     "bugfix.duplicateArtifact": "bugfix.stateIntegrity",
@@ -201,13 +201,24 @@ describe("the six atomic flags survive the class regroup via renamedRuleFlags", 
     expect((plugin as Record<string, unknown>)["migrateBag"]).toBeUndefined();
   });
 
-  it("maps every retired atomic flag to its class flag, and only to a flag still declared", () => {
+  it("keeps non-content rule renames pointed at current rules", () => {
     expect(manifestRaw.renamedRuleFlags).toEqual(EXPECTED_RENAMES);
     const currentFlags = new Set(manifestRaw.rules.map((r) => r.flag));
     for (const [oldFlag, newFlag] of Object.entries(EXPECTED_RENAMES)) {
       expect(currentFlags.has(newFlag), `${newFlag} must still be a declared rule`).toBe(true);
       expect(currentFlags.has(oldFlag), `${oldFlag} must NOT still be a declared rule`).toBe(false);
     }
+  });
+
+  it("moves Text and history's legacy rule choices to its content section", () => {
+    const section = manifestRaw.sections.find((s) => s.id === "bugfix-text-and-history");
+    expect(section).toBeDefined();
+    expect(section!.flag).toBe("bugfix.textAndHistory");
+    expect(section!.renamedSectionFlags).toEqual([
+      "bugfix.textAndHistory",
+      "bugfix.uniqueKillHistory",
+      "bugfix.miscStrings",
+    ]);
   });
 
   it("passes the host's real manifest validator with renamedRuleFlags in place", () => {
@@ -222,9 +233,9 @@ describe("the six atomic flags survive the class regroup via renamedRuleFlags", 
    * engine repo): a choice already recorded for the current flag wins outright;
    * otherwise every retired flag feeding one class is folded with OR. This repo
    * has no dependency on the web package, so the fold is reimplemented here to
-   * pin the PROPERTY the manifest's renamedRuleFlags exists to buy: an old
-   * per-fix choice always resolves into the right class, and turning a fix ON
-   * is never silently lost.
+   * pin the PROPERTY the remaining manifest `renamedRuleFlags` exists to buy:
+   * an old per-fix choice always resolves into the right class, and turning a
+   * fix ON is never silently lost.
    */
   function foldRuleChoices(
     oldChoices: Readonly<Record<string, boolean>>,
@@ -239,36 +250,30 @@ describe("the six atomic flags survive the class regroup via renamedRuleFlags", 
     return folded;
   }
 
-  it("round-trips a pre-regroup player's mixed atomic choices into the three classes with no loss", () => {
+  it("round-trips a pre-regroup player's remaining rule choices into their classes with no loss", () => {
     // A player on the OLD (six-flag) mod who had explicitly turned some fixes
     // off - mixed state inside a multi-fix class is exactly what the OR-fold
     // has to decide, and is the case a lossy migration would get wrong.
     const preRegroupChoices = {
-      "bugfix.uniqueKillHistory": true,
-      "bugfix.miscStrings": false,
       "bugfix.noiseScentSave": true,
       "bugfix.objectListOrder": false,
       "bugfix.duplicateArtifact": false,
       "bugfix.stairsReachable": false,
     };
     expect(foldRuleChoices(preRegroupChoices, EXPECTED_RENAMES)).toEqual({
-      "bugfix.textAndHistory": true, // uniqueKillHistory on, miscStrings off
       "bugfix.stateIntegrity": true, // noiseScentSave on, the other two off
       "bugfix.levelGeneration": false, // stairsReachable was off alone
     });
   });
 
-  it("turns a class off only when every one of its retired constituents was off", () => {
+  it("turns a class off only when every remaining retired constituent was off", () => {
     const allOffInText = {
-      "bugfix.uniqueKillHistory": false,
-      "bugfix.miscStrings": false,
       "bugfix.noiseScentSave": false,
       "bugfix.objectListOrder": false,
       "bugfix.duplicateArtifact": false,
       "bugfix.stairsReachable": true,
     };
     expect(foldRuleChoices(allOffInText, EXPECTED_RENAMES)).toEqual({
-      "bugfix.textAndHistory": false,
       "bugfix.stateIntegrity": false,
       "bugfix.levelGeneration": true,
     });
@@ -281,7 +286,6 @@ describe("the six atomic flags survive the class regroup via renamedRuleFlags", 
     const onlyOneChoice = { "bugfix.stairsReachable": false };
     const folded = foldRuleChoices(onlyOneChoice, EXPECTED_RENAMES);
     expect(folded).toEqual({ "bugfix.levelGeneration": false });
-    expect(folded).not.toHaveProperty("bugfix.textAndHistory");
     expect(folded).not.toHaveProperty("bugfix.stateIntegrity");
   });
 });

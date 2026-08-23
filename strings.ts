@@ -1,7 +1,9 @@
 /**
- * "Misc. string fixes" (bugfix.textAndHistory) - cosmetic corrections to the text
- * Angband 4.2.6 itself ships, and the bug-fixes mod's own code. Core keeps
- * upstream's wording EXACTLY; nothing here is compiled into it.
+ * "Misc. string fixes" (the runtime portion of bugfix.textAndHistory) - cosmetic
+ * corrections to the text Angband 4.2.6 itself ships, and the bug-fixes mod's own
+ * code. The same flag also gates lore-text content patches in class.json and
+ * object_property.json. Core keeps upstream's wording EXACTLY; nothing here is
+ * compiled into it.
  *
  * WHAT THIS ACTUALLY IS, measured rather than assumed, over the 577 distinct
  * literals reference/src hands to msg / msgt / get_check / get_string /
