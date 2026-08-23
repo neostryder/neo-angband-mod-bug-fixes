@@ -15,7 +15,7 @@ are, however small, which for this mod is most of the file.
 - **Two Tolkien-lore text corrections join the Text and history toggle.** The
   Priest spell Light of Manwë is renamed Light of Varda, and the blessed melee
   property's description changes "the gods" to "the Valar". Reported by
-  u/Dranikos.
+  `u/Dranikos`.
 
 ## 0.16.2
 
