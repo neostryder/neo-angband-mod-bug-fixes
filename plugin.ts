@@ -18,11 +18,11 @@
  *
  *   export default { api: 1, hooks(ctx) { ... } }
  *
- * `ctx.flags` is the host's RESOLVED per-patch choice map: every `rules[].flag`
- * this mod declares in its manifest.json, mapped to the value the player's toggles
- * settled on (manifest `default` unless they changed it). The host calls `hooks`
- * ONCE per enabled mod, in load order, and folds the results with composeModHooks
- * (core/mod/hooks.ts) into the single ModHooks core holds.
+ * `ctx.flags` is the host's RESOLVED per-patch choice map: every declared rule
+ * flag and content-section flag in manifest.json, mapped to the value the player's
+ * toggles settled on (manifest `default` unless they changed it). The host calls
+ * `hooks` ONCE per enabled mod, in load order, and folds the results with
+ * composeModHooks (core/mod/hooks.ts) into the single ModHooks core holds.
  *
  * `ctx.core` is the ENGINE, handed in, and this file imports @rpgm-tools/neo-angband-core for
  * TYPES ONLY. The same source is built to the `plugin.js` that ships in this mod's
@@ -74,7 +74,8 @@ export default {
 
   /*
    * bugfix.textAndHistory - what the game WRITES DOWN or SAYS. No game state.
-   * Folds #4245 (unique kill history) and the misc. string table.
+   * Folds #4245 (unique kill history) and the misc. string table; the same flag
+   * also gates its lore-text content patches.
    */
   if (flags["bugfix.textAndHistory"] === true) {
     /*
