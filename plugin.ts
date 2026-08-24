@@ -52,6 +52,7 @@
  */
 
 import type { Gen, ModHooks } from "@rpgm-tools/neo-angband-core";
+import { expandRawUserNote, type BugFixesHooks } from "./history";
 import { ensureStairsReachable, type StairsCore } from "./stairs";
 import { miscStringFix } from "./strings";
 
@@ -70,7 +71,7 @@ export default {
 
   hooks(ctx: HookCtx): ModHooks {
   const { flags, core } = ctx;
-  const hooks: ModHooks = {};
+  const hooks: BugFixesHooks = {};
 
   /*
    * bugfix.textAndHistory - what the game WRITES DOWN or SAYS. No game state.
@@ -83,8 +84,24 @@ export default {
      * a shape-change or projection death path logs a second "Killed X" entry.
      * Faithful core logs every entry it reaches, duplicates included; core reports
      * whether THIS entry is a duplicate and holds no opinion about it.
+     *
+     * #6665 retains an unexpanded note in the same writable request.  The raw
+     * text is at most the command's input limit, so history's 79-character
+     * storage cannot cut off a long player name, the note's tail, or its quote.
      */
-    hooks.historyAdd = (entry): boolean => !entry.duplicate;
+    hooks.historyAdd = (entry): boolean => {
+      if (entry.duplicate) return false;
+      if (entry.rawUserInput !== undefined) {
+        entry.what = entry.rawUserInput;
+        entry.expandUserInput = true;
+      }
+      return true;
+    };
+
+    /* The matching display half of #6665.  Screens calls this same hook for the
+     * live history page and the character dump, so a raw entry has one expansion
+     * rule everywhere a player can read it. */
+    hooks.historyDisplay = expandRawUserNote;
 
     /*
      * Misc. string fixes: upstream's own cosmetic string warts, corrected at the
@@ -160,6 +177,9 @@ export default {
       ensureStairsReachable(gen as Gen, quest, core);
   }
 
-  return hooks;
+  /* The released engine type still predates history's writable/display seams;
+   * both are structural additions and are verified against the built source
+   * engine in this repository's local-core test run. */
+  return hooks as unknown as ModHooks;
   },
 };

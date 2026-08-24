@@ -1,7 +1,7 @@
 {
   "id": "bug-fixes",
   "name": "Bug Fixes (unofficial patch set)",
-  "version": "0.19.1",
+  "version": "0.19.2",
   "shape": "content",
   "facets": [
     "content",
@@ -40,7 +40,7 @@
       "id": "bugfix-text-and-history",
       "flag": "bugfix.textAndHistory",
       "title": "Text and history fixes",
-      "description": "Item and monster descriptions, and anything else the game writes down or says, that say something the game no longer does or no longer means - no game state changes. Rewrites four gamedata descriptions still written for a two-handed-weapon rule Angband 4.2 dropped (the Two-Handed Great Flail, the Pike, the Trident 'of Wrath' and 'Mundwine' - text only, nothing here changes damage, weight, slot or any other number). Stops a unique re-killed through a shape-change or projection death path from logging a second 'Killed X' history entry (#4245), and applies cosmetic corrections to Angband 4.2.6's own message text. It also corrects the Priest spell name from Light of Manwë to Light of Varda, the blessed property's description from gods to Valar, and the spelling of Ossë in the Trident 'of Wrath' description, which Angband corrected after the 4.2.6 tag. Measured rather than assumed, and it is a smaller list than you might expect: 4.2.6 puts TWO spaces after a sentence almost everywhere, and exactly FOUR messages break that pattern with one (\"The ground shakes! The ceiling caves in!\"), so this normalizes those four UP to the house style. A sweep for misspellings across every msg()/msgt()/get_check() literal found NONE, so spacing really is all there is to fix today. Purely presentational: no message changes meaning, and nothing about gameplay changes.",
+      "description": "Item and monster descriptions, and anything else the game writes down or says, that say something the game no longer does or no longer means - no game state changes. Rewrites four gamedata descriptions still written for a two-handed-weapon rule Angband 4.2 dropped (the Two-Handed Great Flail, the Pike, the Trident 'of Wrath' and 'Mundwine' - text only, nothing here changes damage, weight, slot or any other number). Stops a unique re-killed through a shape-change or projection death path from logging a second 'Killed X' history entry (#4245), keeps a player note's full text when a long player name would otherwise truncate it (#6665), and applies cosmetic corrections to Angband 4.2.6's own message text. It also corrects the Priest spell name from Light of Manwë to Light of Varda, the blessed property's description from gods to Valar, and the spelling of Ossë in the Trident 'of Wrath' description, which Angband corrected after the 4.2.6 tag. Measured rather than assumed, and it is a smaller list than you might expect: 4.2.6 puts TWO spaces after a sentence almost everywhere, and exactly FOUR messages break that pattern with one (\"The ground shakes! The ceiling caves in!\"), so this normalizes those four UP to the house style. A sweep for misspellings across every msg()/msgt()/get_check() literal found NONE, so spacing really is all there is to fix today. Purely presentational: no message changes meaning, and nothing about gameplay changes.",
       "default": true,
       "renamedSectionFlags": [
         "bugfix.textAndHistory",

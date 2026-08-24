@@ -8,6 +8,16 @@ An entry has to matter to somebody running the mod. Documentation wording,
 internal refactoring and test-only additions are not recorded here. Bug fixes
 are, however small, which for this mod is most of the file.
 
+## 0.19.2
+
+### Fixed
+
+- Player notes now retain their raw input under the Text and history toggle
+  (`bugfix.textAndHistory`) and expand when history is displayed. A long player
+  name no longer truncates a full `/say` note or drops its closing quote from a
+  saved character history or character dump (#6665). With the toggle off,
+  history remains faithful to Angband 4.2.6's expanded-and-truncated entry.
+
 ## 0.19.1
 
 ### Fixed

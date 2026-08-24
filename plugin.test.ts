@@ -45,6 +45,7 @@ import type {
 } from "@rpgm-tools/neo-angband-core";
 import * as neoCore from "@rpgm-tools/neo-angband-core";
 import { validateManifest } from "@rpgm-tools/neo-angband-mod-sdk";
+import type { BugFixesHooks, RawUserNoteWrite } from "./history";
 import plugin from "./plugin";
 
 /**
@@ -53,8 +54,9 @@ import plugin from "./plugin";
  * (mods/bug-fixes/plugin.ts), and the host reduces that to a function of flags
  * (src/mod-hooks.ts pluginAdapter). Same reduction here, with the real core.
  */
-const bugFixesHooks = (flags: Readonly<Record<string, boolean>>): ModHooks =>
-  plugin.hooks({ flags, core: neoCore });
+const bugFixesHooks = (
+  flags: Readonly<Record<string, boolean>>,
+): ModHooks & BugFixesHooks => plugin.hooks({ flags, core: neoCore }) as unknown as ModHooks & BugFixesHooks;
 
 /* ------------------------------------------------------------------ *
  * Content.
@@ -119,7 +121,7 @@ const ALL_ON: Readonly<Record<string, boolean>> = {
  * One toggle per CLASS of fix, never one per atomic fix.
  */
 const CLASS_TO_HOOKS: readonly [string, readonly string[]][] = [
-  ["bugfix.textAndHistory", ["historyAdd", "messageText"]],
+  ["bugfix.textAndHistory", ["historyAdd", "historyDisplay", "messageText"]],
   [
     "bugfix.stateIntegrity",
     ["saveNoiseScent", "objectListTiebreak", "artifactCommit"],
@@ -334,6 +336,66 @@ describe("#4245: no duplicate unique-kill history entries", () => {
     );
     expect(logged).toHaveLength(1);
     expect(logged[0]?.event).toBe("Killed Grip, Farmer Maggot's Dog");
+  });
+});
+
+describe("#6665: raw player notes expand after history storage", () => {
+  const playerName = "CelebrimborLong";
+  const raw = `/say ${"x".repeat(64)}`;
+  const expanded = `-- ${playerName} says: "${raw.slice(5)}"`;
+
+  function storedNote(hooks: ModHooks & BugFixesHooks) {
+    const game = startGame(pack, { seed: 6665, depth: 1, modHooks: hooks });
+    const entry: RawUserNoteWrite = {
+      what: expanded,
+      type: HIST.USER_INPUT,
+      duplicate: false,
+      rawUserInput: raw,
+    };
+    const wanted = hooks.historyAdd?.(entry) ?? true;
+    expect(wanted).toBe(true);
+    const add = neoCore.historyAdd as unknown as (
+      player: typeof game.state.actor.player,
+      text: string,
+      type: number,
+      dlev: number,
+      clev: number,
+      turn: number,
+      expandUserInput?: true,
+    ) => boolean;
+    add(game.state.actor.player, entry.what, HIST.USER_INPUT, 1, 1, 7, entry.expandUserInput);
+
+    const saved = JSON.parse(JSON.stringify(saveGame(game)));
+    const restored = loadGame(pack, saved as never).state;
+    const entryAfterReload = (restored.actor.player.hist as unknown as Array<{
+      event: string;
+      expandUserInput?: true;
+    }>).at(-1)!;
+    return { entryAfterReload, hooks };
+  }
+
+  it("keeps a full raw note through a save/reload and expands it in every history view", () => {
+    const { entryAfterReload, hooks } = storedNote(bugFixesHooks(ALL_ON));
+    expect(expanded).toHaveLength(91);
+    expect(entryAfterReload).toMatchObject({ event: raw, expandUserInput: true });
+    expect(entryAfterReload.event).toHaveLength(69);
+    const displayEntry =
+      entryAfterReload.expandUserInput === true
+        ? { what: entryAfterReload.event, type: 1 << HIST.USER_INPUT, expandUserInput: true as const }
+        : { what: entryAfterReload.event, type: 1 << HIST.USER_INPUT };
+    expect(hooks.historyDisplay!(displayEntry, playerName)).toBe(expanded);
+    expect(hooks.historyDisplay!(displayEntry, playerName)).toMatch(/x"$/);
+  });
+
+  it("leaves the 4.2.6 expanded-and-truncated entry untouched when Text and history is off", () => {
+    const { entryAfterReload, hooks } = storedNote(
+      bugFixesHooks({ "bugfix.textAndHistory": false }),
+    );
+    expect(hooks.historyAdd).toBeUndefined();
+    expect(hooks.historyDisplay).toBeUndefined();
+    expect(entryAfterReload).toMatchObject({ event: expanded.slice(0, 79) });
+    expect(entryAfterReload.event).toHaveLength(79);
+    expect(entryAfterReload.event).not.toMatch(/"$/);
   });
 });
 

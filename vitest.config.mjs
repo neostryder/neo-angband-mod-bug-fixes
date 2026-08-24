@@ -1,5 +1,6 @@
 /**
- * Test config, whose only job is an OPT-IN path to a local engine.
+ * Test config, whose only job is an OPT-IN path to a local engine and its
+ * matching content pack.
  *
  * By default these tests import `@rpgm-tools/neo-angband-core` from node_modules -
  * the PUBLISHED engine, the version a player actually runs. That default is
@@ -35,6 +36,7 @@ import { join } from "node:path";
 import { defineConfig } from "vitest/config";
 
 const CORE = "@rpgm-tools/neo-angband-core";
+const CONTENT_PACK = "@rpgm-tools/neo-angband-content/pack";
 
 function localCore() {
   if (process.env["NEO_ANGBAND_LOCAL_CORE"] !== "1") return {};
@@ -56,15 +58,17 @@ function localCore() {
 
   for (const root of roots) {
     const entry = join(root, "packages", "core", "dist", "index.js");
-    if (existsSync(entry)) {
+    const content = join(root, "packages", "content", "dist", "pack.js");
+    if (existsSync(entry) && existsSync(content)) {
       console.log(`[vitest] NEO_ANGBAND_LOCAL_CORE=1 -> ${entry}`);
-      return { [CORE]: entry };
+      console.log(`[vitest] matching content pack -> ${content}`);
+      return { [CORE]: entry, [CONTENT_PACK]: content };
     }
   }
   throw new Error(
     "NEO_ANGBAND_LOCAL_CORE=1 was set, but no BUILT engine was found. Run `pnpm build`\n" +
-      "in the game's repository, or point NEO_ANGBAND_REPO at it.\n" +
-      `Looked for packages/core/dist/index.js under:\n${roots.map((r) => `  ${r}`).join("\n")}`,
+    "in the game's repository, or point NEO_ANGBAND_REPO at it.\n" +
+      `Looked for packages/core/dist/index.js and packages/content/dist/pack.js under:\n${roots.map((r) => `  ${r}`).join("\n")}`,
   );
 }
 
