@@ -7,6 +7,8 @@ Fixes for bugs in upstream Angband, for
 you can turn off on its own, and disabling the mod leaves the game bug-for-bug as
 Angband 4.2.6 is.
 
+![The mod manager's confirmation screen for turning the patch set on](docs/img/bugfixes-enable.jpg)
+
 ## Why this is a mod and not a better port
 
 Neo Angband is an exact-parity port: bugs inherited from the reference code are
