@@ -1,6 +1,14 @@
 // bug-fixes - generated from plugin.ts by neo-angband-mod-build
 // (@rpgm-tools/neo-angband-mod-sdk). Edit the TypeScript source, not this file.
 
+// history.ts
+function expandRawUserNote(entry, playerName) {
+  if (entry.expandUserInput !== true) return entry.what;
+  if (entry.what.startsWith("/say ")) return `-- ${playerName} says: "${entry.what.slice(5)}"`;
+  if (entry.what.startsWith("/me")) return `-- ${playerName}${entry.what.slice(3)}`;
+  return `-- Note: ${entry.what}`;
+}
+
 // stairs.ts
 function stairWalkable(c, grid) {
   return c.isPassable(grid) || c.isDoor(grid) || c.isRubble(grid);
@@ -121,7 +129,15 @@ var plugin_default = {
     const { flags, core } = ctx;
     const hooks = {};
     if (flags["bugfix.textAndHistory"] === true) {
-      hooks.historyAdd = (entry) => !entry.duplicate;
+      hooks.historyAdd = (entry) => {
+        if (entry.duplicate) return false;
+        if (entry.rawUserInput !== void 0) {
+          entry.what = entry.rawUserInput;
+          entry.expandUserInput = true;
+        }
+        return true;
+      };
+      hooks.historyDisplay = expandRawUserNote;
       hooks.messageText = (raw) => miscStringFix(raw);
     }
     if (flags["bugfix.stateIntegrity"] === true) {
