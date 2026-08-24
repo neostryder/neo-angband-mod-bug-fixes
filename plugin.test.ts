@@ -366,6 +366,12 @@ describe("#6665: raw player notes expand after history storage", () => {
     add(game.state.actor.player, entry.what, HIST.USER_INPUT, 1, 1, 7, entry.expandUserInput);
 
     const saved = JSON.parse(JSON.stringify(saveGame(game)));
+    const savedEntry = saved.player.hist.at(-1)!;
+    if (entry.expandUserInput === true) {
+      expect(savedEntry).toMatchObject({ event: raw, expandUserInput: true });
+    } else {
+      expect(savedEntry).toMatchObject({ event: expanded.slice(0, 79) });
+    }
     const restored = loadGame(pack, saved as never).state;
     const entryAfterReload = (restored.actor.player.hist as unknown as Array<{
       event: string;
