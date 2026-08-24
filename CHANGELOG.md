@@ -8,6 +8,18 @@ An entry has to matter to somebody running the mod. Documentation wording,
 internal refactoring and test-only additions are not recorded here. Bug fixes
 are, however small, which for this mod is most of the file.
 
+## 0.19.0
+
+### Fixed
+
+- **The Trident 'of Wrath' description spells the Maia's name "Ossë" again.**
+  Angband 4.2.6 spells it "Osse", and Angband corrected that after the tag
+  (commit `f1b1626f6`, 2026-07-26). Core keeps the tag's spelling, so the
+  correction belongs here. This mod already rewrites that same description to
+  drop a two-handed-weapon rule the game no longer has, and had been carrying
+  the old spelling forward with it. Joins the existing Text and history toggle
+  (`bugfix.textAndHistory`) rather than adding a switch of its own.
+
 ## 0.18.2
 
 Added a Terms of Use and a shared Code of Conduct alongside the existing
