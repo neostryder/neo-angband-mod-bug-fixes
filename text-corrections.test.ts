@@ -161,43 +161,4 @@ describe("text-corrections", () => {
       expect(after.length).toBeLessThan(before.length);
     });
   }
-
-  /*
-   * A SECOND correction riding the same replacement, and the reason it is
-   * tested apart from the loop above: it is not a two-hand claim, so no row's
-   * assertions would ever look at it.
-   *
-   * Angband 4.2.6 spells the Maia's name "Osse" in the Trident 'of Wrath'
-   * description. Upstream corrected it to "Ossë" after the tag, in commit
-   * f1b1626f663cece5fd7952494527ffa41c1bebc6 ("Correct spelling of Ossë",
-   * 2026-07-26, lib/gamedata/artifact.txt). Core keeps the tag's spelling,
-   * which is what core is for; the correction ships here, in the replacement
-   * this section already writes over that same description.
-   *
-   * The diaeresis is DATA. It has to match upstream's gamedata byte for byte
-   * or the correction is a different misspelling, and this mod already carries
-   * the same character in "Light of Manwë" (lore-text.test.ts).
-   */
-  it("artifact: of Wrath - corrects the spelling of Ossë (upstream f1b1626f6)", () => {
-    const rec = corePack("artifact").records.find((r) => r["name"] === "of Wrath")!;
-    const ref = `core:${recordKey("artifact", rec)}`;
-    const replacement = CONTRIB["artifact"]!.sections["bugfix-text-and-history"]!.patches[ref]!;
-
-    const before = (rec.desc as string[]).join("");
-    const after = replacement.desc.join("");
-
-    /* Core still carries the tag's spelling. This half expires if the engine
-     * ever publishes a pack built from post-tag gamedata, and says so. */
-    expect(
-      before,
-      `core content ${CONTENT_VERSION} no longer spells the name "Osse", so ` +
-        `this correction has nothing left to fix and should be retired.`,
-    ).toContain("Osse ");
-    expect(before).not.toContain("Ossë");
-
-    /* The replacement carries the corrected spelling and nothing else changed
-     * about the name. */
-    expect(after).toContain("Ossë who with it");
-    expect(after).not.toContain("Osse ");
-  });
 });

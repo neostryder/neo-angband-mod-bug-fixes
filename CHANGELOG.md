@@ -8,6 +8,16 @@ An entry has to matter to somebody running the mod. Documentation wording,
 internal refactoring and test-only additions are not recorded here. Bug fixes
 are, however small, which for this mod is most of the file.
 
+## 0.19.1
+
+### Fixed
+
+- Reverted 0.19.0's Trident 'of Wrath' spelling correction. That change cited
+  an accepted upstream commit (`f1b1626f6`), which puts it in scope for the
+  `upstream-catchup` mod rather than this one - this mod covers defects with
+  no accepted upstream fix. The description reads "Osse" again, matching
+  Angband 4.2.6's own spelling, as it did before 0.19.0.
+
 ## 0.19.0
 
 ### Fixed
@@ -19,6 +29,9 @@ are, however small, which for this mod is most of the file.
   drop a two-handed-weapon rule the game no longer has, and had been carrying
   the old spelling forward with it. Joins the existing Text and history toggle
   (`bugfix.textAndHistory`) rather than adding a switch of its own.
+
+  **Retracted in 0.19.1: this belongs in the `upstream-catchup` mod, not
+  here** - see that entry.
 
 ## 0.18.2
 
