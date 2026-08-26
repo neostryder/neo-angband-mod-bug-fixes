@@ -10,6 +10,8 @@ are, however small, which for this mod is most of the file.
 
 ## [Unreleased]
 
+## 1.0.0 - 2026-08-26
+
 ### Changed
 
 - Tested and typechecked against engine, content and mod-sdk 0.34.2 rather
