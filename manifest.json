@@ -1,14 +1,14 @@
 {
   "id": "bug-fixes",
   "name": "Bug Fixes",
-  "version": "0.19.2",
+  "version": "1.0.0",
   "shape": "content",
   "facets": [
     "content",
     "plugin"
   ],
   "modApi": 1,
-  "engine": ">=0.10.0",
+  "engine": ">=1.0.0",
   "dependencies": {
     "core": "*"
   },
