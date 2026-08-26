@@ -19,7 +19,7 @@
     {
       "flag": "bugfix.stateIntegrity",
       "title": "State integrity fixes",
-      "description": "The game's own bookkeeping staying consistent with itself, including across a save and reload. Persists the noise and scent heatmaps so monsters track you identically after a save/reload (#4605); gives the floor object list a deterministic total order so equal-distance items never reorder unexpectedly (#4664); and refuses to commit an object that already carries a created artifact a second time (#4510).",
+      "description": "The game's own bookkeeping staying consistent with itself, including across a save and reload. Persists the noise and scent heatmaps so monsters track you identically after a save/reload (#4605); gives the floor object list a deterministic total order so equal-distance items never reorder unexpectedly (#4664); refuses to commit an object that already carries a created artifact a second time (#4510); refuses to merge a partial stack of wands or staves when the stack being drained is already full, which stops charges drifting between the two stacks on repeated drop and pickup (#6355 residual); and sheds the item that actually left your quiver when a pack overflow follows an inscription change, instead of an unrelated item (#4666).",
       "default": true
     },
     {

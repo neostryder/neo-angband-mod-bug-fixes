@@ -144,6 +144,8 @@ var plugin_default = {
       hooks.saveNoiseScent = () => true;
       hooks.objectListTiebreak = (a, b) => Math.sign(a.dy - b.dy) || Math.sign(a.dx - b.dx);
       hooks.artifactCommit = (_aidx, alreadyCreated) => !alreadyCreated;
+      hooks.partialStackMerge = (drained) => drained.number !== drained.kind.base.maxStack;
+      hooks.packOverflowVictim = (_state, departedQuiver) => departedQuiver;
     }
     if (flags["bugfix.levelGeneration"] === true) {
       hooks.levelGenerated = (gen, quest) => ensureStairsReachable(gen, quest, core);
