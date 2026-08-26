@@ -124,8 +124,8 @@ not name.
 ## A note on scores
 
 A mod that changes gameplay flags the save, permanently. That is deliberate: a
-character who played with fixes Angband does not have should not sit in a score list
-beside one who did not.
+character who played with fixes should not sit in a score list beside one who did
+not.
 
 ## Releasing
 
@@ -140,7 +140,7 @@ Angband announcements forum automatically, built from the matching
 to ask anything - whether a behaviour is intended, how to get this installed,
 or what you should try next. No GitHub account needed.
 
-[Open an issue here](../../issues/new/choose) for a bug in **this mod**. Two
+[Open an issue here](https://github.com/neostryder/neo-angband-mod-bug-fixes/issues/new/choose) for a bug in **this mod**. Two
 things belong against the game instead, and the forms will point you there: the
 mod **system** (an install that fails, a load order that will not stick, a
 conflict report that looks wrong), and the game **not matching Angband 4.2.6**
