@@ -1,6 +1,6 @@
 # License
 
-Bug Fixes (unofficial patch set) is a mod for [Neo Angband](https://github.com/neostryder/neo-angband),
+Bug Fixes is an unofficial patch set and a mod for [Neo Angband](https://github.com/neostryder/neo-angband),
 which is a derivative work of Angband, and it retains the same dual license.
 
 Copyright (c) 1997 Ben Harrison, James E. Wilson, Robert A. Koeneke, and the

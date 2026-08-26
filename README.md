@@ -1,6 +1,6 @@
-# bug-fixes: an unofficial patch set
+# Bug Fixes
 
-Fixes for bugs in upstream Angband, for
+An unofficial patch set fixing bugs in upstream Angband, for
 [Neo Angband](https://github.com/neostryder/neo-angband), as a mod.
 
 **This is a mod.** It is off until you enable it, every fix inside it is a named switch
