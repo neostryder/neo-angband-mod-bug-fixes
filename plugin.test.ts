@@ -39,6 +39,7 @@ import type {
   Artifact,
   GameObject,
   GamePack,
+  GameState,
   MakeDeps,
   ModHooks,
   ObjectListEntry,
@@ -46,6 +47,7 @@ import type {
 import * as neoCore from "@rpgm-tools/neo-angband-core";
 import { validateManifest } from "@rpgm-tools/neo-angband-mod-sdk";
 import type { BugFixesHooks, RawUserNoteWrite } from "./history";
+import type { StateIntegritySeamHooks } from "./state-integrity";
 import plugin from "./plugin";
 
 /**
@@ -56,7 +58,10 @@ import plugin from "./plugin";
  */
 const bugFixesHooks = (
   flags: Readonly<Record<string, boolean>>,
-): ModHooks & BugFixesHooks => plugin.hooks({ flags, core: neoCore }) as unknown as ModHooks & BugFixesHooks;
+): ModHooks & BugFixesHooks & StateIntegritySeamHooks =>
+  plugin.hooks({ flags, core: neoCore }) as unknown as ModHooks &
+    BugFixesHooks &
+    StateIntegritySeamHooks;
 
 /* ------------------------------------------------------------------ *
  * Content.
@@ -124,7 +129,13 @@ const CLASS_TO_HOOKS: readonly [string, readonly string[]][] = [
   ["bugfix.textAndHistory", ["historyAdd", "historyDisplay", "messageText"]],
   [
     "bugfix.stateIntegrity",
-    ["saveNoiseScent", "objectListTiebreak", "artifactCommit"],
+    [
+      "saveNoiseScent",
+      "objectListTiebreak",
+      "artifactCommit",
+      "partialStackMerge",
+      "packOverflowVictim",
+    ],
   ],
   ["bugfix.levelGeneration", ["levelGenerated"]],
 ];
@@ -543,5 +554,139 @@ describe("#4510: an artifact cannot be committed twice", () => {
 
     expect(makeArtifact(new Rng(1), d, obj, art.allocMin)).toBe(true);
     expect(obj.artifact?.aidx).toBe(art.aidx);
+  });
+});
+
+describe("#6355 residual: partialStackMerge guards a full source stack (neostryder/neo-angband#115)", () => {
+  const hook = bugFixesHooks(ALL_ON).partialStackMerge!;
+
+  it("refuses when the drained (source) stack is already at its per-stack limit, and permits otherwise", () => {
+    const full = { number: 40, kind: { base: { maxStack: 40 } } } as unknown as GameObject;
+    const notFull = { number: 39, kind: { base: { maxStack: 40 } } } as unknown as GameObject;
+    const receiving = { number: 5, kind: { base: { maxStack: 40 } } } as unknown as GameObject;
+    expect(hook(full, receiving)).toBe(false);
+    expect(hook(notFull, receiving)).toBe(true);
+  });
+
+  /*
+   * Drives the real object_absorb_partial (obj/object.ts) on two genuine WAND
+   * stacks. The published engine this mod compiles and tests against does not
+   * yet call partialStackMerge itself - the hook and its core call site are
+   * both new in this change - so combinePack's future call is reproduced here
+   * by hand: skip the absorb when the hook refuses, run it unchanged when the
+   * hook permits or is absent. This proves the hook's own decision and the
+   * real consequence of honoring it; that the shipped combinePack actually
+   * wires the call is core's own seam test (packages/core/src/game/gear.test.ts
+   * in the engine repository).
+   */
+  it("in a real merge, a refusal leaves both stacks exactly as they were; faithful core (no hook) still swaps them", () => {
+    const reg = new ObjRegistry(objPack as never);
+    const constants = bindConstants(loadJson("constants") as never);
+    const kind = reg.kinds.find(
+      (k) => k.tval === neoCore.TV.WAND && k.kidx < reg.ordinaryKindCount,
+    )!;
+    const limits = {
+      quiverSlotSize: constants.quiverSlotSize,
+      thrownQuiverMult: constants.thrownQuiverMult,
+    };
+
+    function freshStacks(): { dest: GameObject; source: GameObject } {
+      const dest = objectPrep(new Rng(1), reg, constants, kind, 0, "minimise");
+      dest.number = 5;
+      dest.pval = 10;
+      const source = objectPrep(new Rng(1), reg, constants, kind, 0, "minimise");
+      source.number = kind.base.maxStack;
+      source.pval = 80;
+      return { dest, source };
+    }
+
+    // Faithful core: no hook consulted, the merge proceeds and the two counts swap.
+    const faithful = freshStacks();
+    neoCore.objectAbsorbPartial(
+      faithful.dest,
+      faithful.source,
+      neoCore.OSTACK_PACK,
+      neoCore.OSTACK_PACK,
+      limits,
+      neoCore.ORIGIN.MIXED,
+    );
+    expect(faithful.dest.number).toBe(40);
+    expect(faithful.source.number).toBe(5);
+
+    // The mod's hook is consulted first and refuses, so the call never happens.
+    const guarded = freshStacks();
+    const refused = hook(guarded.source, guarded.dest) === false;
+    expect(refused).toBe(true);
+    if (!refused) {
+      neoCore.objectAbsorbPartial(
+        guarded.dest,
+        guarded.source,
+        neoCore.OSTACK_PACK,
+        neoCore.OSTACK_PACK,
+        limits,
+        neoCore.ORIGIN.MIXED,
+      );
+    }
+    expect(guarded.dest.number).toBe(5);
+    expect(guarded.source.number).toBe(40);
+  });
+});
+
+describe("#4666: packOverflowVictim redirects to the item that left the quiver (neostryder/neo-angband#116)", () => {
+  const hook = bugFixesHooks(ALL_ON).packOverflowVictim!;
+
+  it("forwards departedQuiver unchanged - the whole fix is accepting core's own redirect", () => {
+    expect(hook({} as GameState, 42)).toBe(42);
+    expect(hook({} as GameState, null)).toBeNull();
+  });
+
+  /*
+   * Drives the real pack_overflow (obj-cmd.ts) on a genuine overfull pack. The
+   * published engine this mod compiles and tests against does not yet thread
+   * packOverflowVictim through pack_overflow's NULL-victim path - the hook and
+   * its core call site are both new in this change - so the redirect this
+   * hook would produce is applied here as an explicit handle, exactly the way
+   * a wired core would call packOverflow once it consults the hook itself.
+   * This proves the consequence of honoring the hook's decision - the
+   * departed item, not the naive trailing one, is what actually gets shed;
+   * that the shipped overflowPack already wires the call is core's own seam
+   * test (packages/core/src/game/obj-cmd.test.ts in the engine repository).
+   */
+  it("in a real game, the redirected handle is what actually gets shed - not the naive trailing item", () => {
+    const reg = new ObjRegistry(objPack as never);
+    const constants = bindConstants(loadJson("constants") as never);
+    const game = startGame(pack, { seed: 116, depth: 1, modHooks: bugFixesHooks(ALL_ON) });
+    const state = game.state;
+
+    function carryKind(tval: number, note: string): number {
+      const kind = reg.kinds.find((k) => k.tval === tval && k.kidx < reg.ordinaryKindCount)!;
+      const obj = objectPrep(new Rng(1), reg, constants, kind, 0, "minimise");
+      obj.note = note;
+      const h = neoCore.gearAdd(state.gear, obj);
+      state.gear.pack.push(h);
+      return h;
+    }
+
+    // Stands in for "the item that just left the quiver" - the mechanism core's
+    // own seam test covers is an inscription changing an item's preferred_quiver_slot
+    // match; this test is about the mod's redirect decision, not that mechanism.
+    const dagger = carryKind(neoCore.TV.SWORD, "@w1");
+    const potions: number[] = [];
+    for (let i = 0; i < constants.packSize; i++) {
+      potions.push(carryKind(neoCore.TV.POTION, `catch-all-${i}`));
+    }
+    expect(neoCore.packIsOverfull(state.gear, constants)).toBe(true);
+    neoCore.calcInventory(state.gear, constants);
+
+    const redirected = hook(state, dagger);
+    expect(redirected).toBe(dagger);
+    neoCore.packOverflow(state, redirected!, constants, {});
+
+    // The redirected handle (the dagger) left the pack - not the naive
+    // trailing item, and every potion is still held.
+    expect(neoCore.gearGet(state.gear, dagger)).toBeNull();
+    for (const h of potions) {
+      expect(neoCore.gearGet(state.gear, h)).not.toBeNull();
+    }
   });
 });

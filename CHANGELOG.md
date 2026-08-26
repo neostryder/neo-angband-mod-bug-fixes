@@ -8,6 +8,39 @@ An entry has to matter to somebody running the mod. Documentation wording,
 internal refactoring and test-only additions are not recorded here. Bug fixes
 are, however small, which for this mod is most of the file.
 
+## [Unreleased]
+
+### Changed
+
+- Tested and typechecked against engine, content and mod-sdk 0.34.2 rather
+  than 0.29.0. The devDependency range was five minor releases behind what is
+  actually published; at 0.29.0, core's `historyAdd` did not yet accept or
+  persist the `expandUserInput` marker the Text and history toggle's raw-note
+  fix (#6665) writes, so this repository's own save/reload test for that fix
+  could never actually pass against the version it claimed to test against. No
+  code in this mod changed - the fix was entirely the stale devDependency pin.
+
+### Fixed
+
+- Repeatedly dropping and picking up a stack of 40+ charged wands or staves
+  next to a smaller stack of the same kind no longer drifts charges between
+  the two stacks. combinePack's uneven-stack merge swapped the two stacks'
+  counts whenever the stack being drained was already at its per-stack limit,
+  and charge distribution truncates a fraction on every swap; repeated
+  drop/pickup drifted the loss in one direction. Under the State integrity
+  toggle (`bugfix.stateIntegrity`), the merge is now refused in that case
+  (upstream issue #6355's residual case, never merged as its own PR;
+  neostryder/neo-angband#115).
+- Re-inscribing an item that moves it out of the quiver, with a full pack, no
+  longer sheds an unrelated item onto the floor. The pack-overflow safety net
+  that runs before every command used to shed the last item in the sorted
+  inventory listing unconditionally, which need not be the item that actually
+  caused the overflow - reproduced with a Small wooden chest vanishing while
+  the re-inscribed item stayed held. Under the State integrity toggle
+  (`bugfix.stateIntegrity`), the shed now targets the item that actually left
+  the quiver (upstream issue #4666, open with no accepted fix;
+  neostryder/neo-angband#116).
+
 ## 0.19.2
 
 ### Fixed

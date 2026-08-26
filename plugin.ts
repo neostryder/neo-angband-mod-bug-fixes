@@ -53,6 +53,7 @@
 
 import type { Gen, ModHooks } from "@rpgm-tools/neo-angband-core";
 import { expandRawUserNote, type BugFixesHooks } from "./history";
+import type { StateIntegritySeamHooks } from "./state-integrity";
 import { ensureStairsReachable, type StairsCore } from "./stairs";
 import { miscStringFix } from "./strings";
 
@@ -71,7 +72,7 @@ export default {
 
   hooks(ctx: HookCtx): ModHooks {
   const { flags, core } = ctx;
-  const hooks: BugFixesHooks = {};
+  const hooks: BugFixesHooks & StateIntegritySeamHooks = {};
 
   /*
    * bugfix.textAndHistory - what the game WRITES DOWN or SAYS. No game state.
@@ -115,7 +116,8 @@ export default {
 
   /*
    * bugfix.stateIntegrity - the game's own bookkeeping staying consistent with
-   * itself, including across a save and reload. Folds #4605, #4664, #4510.
+   * itself, including across a save and reload. Folds #4605, #4664, #4510, and
+   * (new) the #6355 residual stack-charge drift and #4666 pack-overflow mis-fire.
    */
   if (flags["bugfix.stateIntegrity"] === true) {
     /*
@@ -156,6 +158,45 @@ export default {
      * outcome without half-drawing.
      */
     hooks.artifactCommit = (_aidx, alreadyCreated): boolean => !alreadyCreated;
+
+    /*
+     * #6355 residual "Charges drift between wand/staff stacks on repeated drop
+     * and pickup" (neostryder/neo-angband#115). combinePack's uneven-stack merge
+     * (object_absorb_partial's non-quiver branch) swaps the two stacks' counts
+     * whenever the destination is not already at its per-stack limit, and
+     * distribute_charges then truncates a charge fraction on every swap -
+     * repeated drop/pickup drifts charges in one direction. Contributor
+     * draconisPW proposed this exact guard upstream on 2025-10-08 and it was
+     * never submitted: refuse the merge when the SOURCE stack (`drained`) is
+     * itself already at its per-stack limit, which draconisPW's own draft tests
+     * as `obj2->number == obj2->kind->base->max_stack`. The existing
+     * destination guard (`obj1->number == obj1->kind->base->max_stack`,
+     * inven_can_stack_partial) is unrelated and already faithful in core.
+     *
+     * RNG-FREE, as the hook requires: a pure read of two counts, drawn on the
+     * main object stream.
+     */
+    hooks.partialStackMerge = (drained): boolean =>
+      drained.number !== drained.kind.base.maxStack;
+
+    /*
+     * #4666 "Re-inscribing a quiver item with a full pack drops an unrelated
+     * item for free" (neostryder/neo-angband#116). packOverflow's NULL-victim
+     * path faithfully sheds the trailing gear.inven[] entry, which need not be
+     * the item that actually caused the overflow - a note-only change (an
+     * inscription) can drop an item's preferred_quiver_slot match and displace
+     * it out of the quiver, turning a slot-weighted quiver stack into a full
+     * pack slot of its own, and the trailing entry can be something else
+     * entirely (a chest, reproduced in the issue). Core already computes which
+     * single handle just left the quiver and hands it over as
+     * `departedQuiver`; the whole fix is accepting that redirect. Declining
+     * (returning it unchanged, including the null case) falls back to core's
+     * faithful selection, so an ordinary overflow from picking something up -
+     * where nothing left the quiver - is untouched.
+     *
+     * RNG-FREE, as the hook requires: no computation at all, let alone a draw.
+     */
+    hooks.packOverflowVictim = (_state, departedQuiver): number | null => departedQuiver;
   }
 
   /*
@@ -177,9 +218,10 @@ export default {
       ensureStairsReachable(gen as Gen, quest, core);
   }
 
-  /* The released engine type still predates history's writable/display seams;
-   * both are structural additions and are verified against the built source
-   * engine in this repository's local-core test run. */
+  /* The released engine type still predates history's writable/display seams
+   * and the two state-integrity seams above (partialStackMerge,
+   * packOverflowVictim); all four are structural additions and are verified
+   * against the built source engine in this repository's local-core test run. */
   return hooks as unknown as ModHooks;
   },
 };
