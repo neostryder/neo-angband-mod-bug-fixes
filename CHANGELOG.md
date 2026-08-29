@@ -8,7 +8,7 @@ An entry has to matter to somebody running the mod. Documentation wording,
 internal refactoring and test-only additions are not recorded here. Bug fixes
 are, however small, which for this mod is most of the file.
 
-## [Unreleased]
+## 1.1.0 - 2026-08-29
 
 ### Added
 
@@ -18,6 +18,15 @@ are, however small, which for this mod is most of the file.
   same kind of fix as a core one, just living in a different mod. Greyed out
   and forced off when the Borg mod is not installed, since it has nothing to
   patch without it (neo-angband#32).
+
+### Changed
+
+- **This version requires Neo Angband 1.2.0 or newer.** `manifest.json`'s
+  engine range moves from `>=1.0.0` to `>=1.2.0`: the Borg Fixes toggle above
+  works by handing its resolved flag to the Borg mod's own `ctx.flags`, a
+  cross-mod propagation core only gained in 1.2.0. Installing this version on
+  an older engine would show the toggle as on with nothing behind it, instead
+  of the correct greyed-out-until-supported state.
 
 ## 1.0.0 - 2026-08-26
 
