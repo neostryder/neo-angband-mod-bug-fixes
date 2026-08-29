@@ -10,6 +10,15 @@ are, however small, which for this mod is most of the file.
 
 ## [Unreleased]
 
+### Added
+
+- A new "Borg Fixes" section: corrections to the Borg mod's own bookkeeping,
+  in the same spirit as everything else here - the Borg mod ports upstream
+  Angband's own autoplayer, so a defect in how it tracks its own state is the
+  same kind of fix as a core one, just living in a different mod. Greyed out
+  and forced off when the Borg mod is not installed, since it has nothing to
+  patch without it (neo-angband#32).
+
 ## 1.0.0 - 2026-08-26
 
 ### Changed
