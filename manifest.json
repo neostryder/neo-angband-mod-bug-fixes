@@ -48,6 +48,21 @@
         "bugfix.miscStrings",
         "text-corrections"
       ]
+    },
+    {
+      "id": "bugfix-borg-fixes",
+      "flag": "bugfix.borgFixes",
+      "title": "Borg Fixes",
+      "description": "Corrections to the Borg's own bookkeeping - the Borg mod ports upstream Angband's own autoplayer, so a defect in how it tracks its own state is the same kind of fix as everything else here, just living in a different mod. Cross-checks the Borg's message-derived buff tracking against the player's own real, engine-reported buff timers, so a missed or garbled message cannot leave a buff flag latched on long after the real buff has actually expired.",
+      "default": true
+    }
+  ],
+  "compat": [
+    {
+      "with": "borg",
+      "claim": "patches",
+      "scope": ["bugfix-borg-fixes"],
+      "because": "This section corrects the Borg mod's own behaviour and does nothing at all without it installed."
     }
   ],
   "repository": "https://github.com/neostryder/neo-angband-mod-bug-fixes"
