@@ -34,9 +34,9 @@ The justification is not that AI is infallible, that AI-generated code is automa
 
 ## What Establishes Correctness
 
-This mod is not the engine. Neo Angband's own unmodded target - the observable gameplay behavior of Angband 4.2.6 - and the statistical parity harness that measures it are established in the main [neo-angband](https://github.com/neostryder/neo-angband) repository's `docs/PARITY.md`, not here. This mod builds on that faithful core; it does not itself re-establish it.
+This mod is not the engine. Neo Angband's own unmodded target, the observable gameplay behavior of Angband 4.2.6, and the statistical parity harness that measures it are established in the main [neo-angband](https://github.com/neostryder/neo-angband) repository's `docs/PARITY.md`, not here. This mod builds on that faithful core; it does not itself re-establish it.
 
-What this mod claims about its own behavior is narrower and is stated in its own `README.md` and `CHANGELOG.md`: what each toggle does, what it changes relative to the faithful core, and, where the change traces back to a specific upstream fact - an Angband GitHub issue, a version where a feature was dropped, a public bug report - that citation.
+What this mod claims about its own behavior is narrower and is stated in its own `README.md` and `CHANGELOG.md`: what each toggle does, what it changes relative to the faithful core, and, where the change traces back to a specific upstream fact such as an Angband GitHub issue, a version where a feature was dropped, or a public bug report, that citation.
 
 Tests for this mod's behavior derive their expectations from that stated source, not from an AI model's description of what the code ought to do.
 
