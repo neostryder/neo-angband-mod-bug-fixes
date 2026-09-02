@@ -44,7 +44,7 @@ question that toggle needs to answer, whatever the underlying mechanism - a
 runtime message patch and a gamedata content patch are the same class of fix at
 the player-facing level.
 
-### The staircase fix draws no randomness, and that is load-bearing
+### The staircase fix uses no randomness
 
 It runs on every generated level, so if it took a single RNG draw every seed would stop
 reproducing its dungeon. It takes none. A level that already satisfies the invariant
