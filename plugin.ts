@@ -52,8 +52,7 @@
  */
 
 import type { Gen, ModHooks } from "@rpgm-tools/neo-angband-core";
-import { expandRawUserNote, type BugFixesHooks } from "./history";
-import type { StateIntegritySeamHooks } from "./state-integrity";
+import { expandRawUserNote } from "./history";
 import { ensureStairsReachable, type StairsCore } from "./stairs";
 import { miscStringFix } from "./strings";
 
@@ -72,7 +71,7 @@ export default {
 
   hooks(ctx: HookCtx): ModHooks {
   const { flags, core } = ctx;
-  const hooks: BugFixesHooks & StateIntegritySeamHooks = {};
+  const hooks: ModHooks = {};
 
   /*
    * bugfix.textAndHistory - what the game WRITES DOWN or SAYS. No game state.
@@ -218,10 +217,6 @@ export default {
       ensureStairsReachable(gen as Gen, quest, core);
   }
 
-  /* The released engine type still predates history's writable/display seams
-   * and the two state-integrity seams above (partialStackMerge,
-   * packOverflowVictim); all four are structural additions and are verified
-   * against the built source engine in this repository's local-core test run. */
-  return hooks as unknown as ModHooks;
+  return hooks;
   },
 };
