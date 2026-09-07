@@ -30,6 +30,8 @@ still be core shipping the fix; this ships nothing.
 One player-facing toggle per **class** of fix, not one per atomic fix. A player
 can reason about each class without reading engine code.
 
+See the [settings reference](SETTINGS.md) for every flag, its default, and when a change takes effect.
+
 | Toggle | What it covers | What it does |
 |---|---|---|
 | **Text and history** (`bugfix.textAndHistory`) | Weapon lore text; [#4245](https://github.com/angband/angband/issues/4245); [#6665](https://github.com/angband/angband/issues/6665); misc. strings; lore text | What the game writes down or says, with no game state changes. Corrects four item descriptions still written for a two-handed-weapon rule Angband 4.2 dropped (the Two-Handed Great Flail, the Pike, the Trident "of Wrath" and "Mundwine" - text only, no damage, weight, or slot changes). Drops a duplicate "Killed X" history entry when a unique is reached again through a shape-change or projection death path, and retains the raw text of player notes so a long player name cannot truncate a full `/say` note in saved history or a character dump. Corrects upstream's own cosmetic message warts at the host's single message sink (exact-match table on purpose: messages arrive already interpolated, so a general rewrite would edit inscriptions and names you typed). Renames the Priest spell Light of Manwë to Light of Varda and says the blessed property is blessed by the Valar. |
