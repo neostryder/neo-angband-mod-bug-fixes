@@ -18,6 +18,13 @@ what kind of change it is. Lists appear in this order and each is omitted
 when empty for a release: Added, Changed, Removed, Fixed. Earlier entries
 were not retagged.
 
+## 1.1.1 - 2026-09-11
+
+Internal maintenance only, nothing for a player to see: the local type mirrors
+for the history and state-integrity seams are dropped now that core publishes
+both directly, pnpm moves to 12.3.4 to match the rest of the family, and the
+docs gained a settings quick reference.
+
 ## 1.1.0 - 2026-08-29
 
 ### Added
