@@ -179,11 +179,13 @@ describe("the bug-fixes mod's entry point", () => {
 
 describe("the six atomic flags survive the class regroup through rule and section renames", () => {
   /*
-   * This mod has never written a save-file bag (no `register()`, nothing on
-   * `ctx.state.mods["bug-fixes"]`), so it has no business owning a
-   * `saveSchema` / `migrateBag` migration - that seam is for a mod's own
-   * PERSISTED GAME STATE, and this mod persists none. What actually needed to
-   * survive the six-flags-to-three regroup is PLAYER TOGGLE STATE. The host
+   * This mod has never written a save-file bag (nothing on
+   * `ctx.state.mods["bug-fixes"]` - `register()` now exists, for #179's
+   * `registry:tval` install below, but it touches no save state), so it has
+   * no business owning a `saveSchema` / `migrateBag` migration - that seam
+   * is for a mod's own PERSISTED GAME STATE, and this mod persists none.
+   * What actually needed to survive the six-flags-to-three regroup is
+   * PLAYER TOGGLE STATE. The host
    * resolves rule and section choices from its own store, keyed by flag name.
    * Four retired rules retain `renamedRuleFlags`; the Text and history rule
    * became a content section, so its own legacy rule and its two predecessors
@@ -630,5 +632,87 @@ describe("#4666: packOverflowVictim redirects to the item that left the quiver (
     for (const h of potions) {
       expect(neoCore.gearGet(state.gear, h)).not.toBeNull();
     }
+  });
+});
+
+/**
+ * bugfix.armourValueFloor (#179) - register()'s WIRING, driven the way the
+ * host drives it: a fake host captures whatever plugin.register() installs
+ * onto it, so this proves ONLY that the toggle installs the right handler
+ * for the right tvals, and nothing when it is off. What the installed
+ * handler actually computes is armour-value.test.ts's job, against the real
+ * published engine and content pack - the same split feature-restoration's
+ * plugin.test.ts uses for its own registry:store discount-roll install.
+ */
+describe("register() - bugfix.armourValueFloor (#179)", () => {
+  /** The nine armour tvals this toggle installs its handler under (obj/object.ts's own tvalIsArmor list). */
+  const ARMOUR_TVALS = [10, 11, 12, 13, 14, 15, 16, 17, 18];
+
+  function fakeHost() {
+    const installed = new Map<number, unknown>();
+    return {
+      host: {
+        tval: {
+          valueAdjust: {
+            set(tval: number, handler: unknown) {
+              installed.set(tval, handler);
+            },
+          },
+        },
+      },
+      installed,
+    };
+  }
+
+  it("installs nothing when the flag is absent or off", () => {
+    const { host, installed } = fakeHost();
+    plugin.register(host, { flags: {}, core: neoCore });
+    expect(installed.size).toBe(0);
+
+    plugin.register(host, { flags: { "bugfix.armourValueFloor": false }, core: neoCore });
+    expect(installed.size).toBe(0);
+  });
+
+  it("installs a handler for exactly the nine armour tvals when the flag is on", () => {
+    const { host, installed } = fakeHost();
+    plugin.register(host, { flags: { "bugfix.armourValueFloor": true }, core: neoCore });
+
+    expect([...installed.keys()].sort((a, b) => a - b)).toEqual(ARMOUR_TVALS);
+    for (const tval of ARMOUR_TVALS) {
+      expect(installed.get(tval)).toBeTypeOf("function");
+    }
+  });
+
+  it("the installed handler is armourValueFloor, driven end to end against a fake registry:tval call", () => {
+    // A magical Studded Leather Armour (+2 AC, 14 total), constructed the
+    // same way armour-value.test.ts's reported-case test does - proving the
+    // handler register() actually installs is the real fix, not a stand-in.
+    const objPack = {
+      objectBase: loadJson("object_base"),
+      object: loadJson("object"),
+      egoItem: loadJson("ego_item"),
+      artifact: loadJson("artifact"),
+      curse: loadJson("curse"),
+      brand: loadJson("brand"),
+      slay: loadJson("slay"),
+      activation: loadJson("activation"),
+      objectProperty: loadJson("object_property"),
+      flavor: loadJson("flavor"),
+    };
+    const reg = new ObjRegistry(objPack as unknown as ConstructorParameters<typeof ObjRegistry>[0]);
+    const constants = bindConstants(loadJson("constants"));
+    const kind = reg.kinds.find((k) => k.name === "Studded Leather Armour~")!;
+    const studded = objectPrep(new Rng(1), reg, constants, kind, 0, "minimise");
+    studded.toA = 2;
+
+    const { host, installed } = fakeHost();
+    plugin.register(host, { flags: { "bugfix.armourValueFloor": true }, core: neoCore });
+    const handler = installed.get(neoCore.TV.SOFT_ARMOR) as (ctx: unknown) => number;
+
+    const baseValue = neoCore.objectValueReal(reg, studded, 1);
+    expect(baseValue).toBe(266);
+    expect(
+      handler({ reg, obj: studded, qty: 1, baseValue, totalAc: studded.ac + studded.toA }),
+    ).toBe(336);
   });
 });

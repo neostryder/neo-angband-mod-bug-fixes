@@ -18,6 +18,12 @@ what kind of change it is. Lists appear in this order and each is omitted
 when empty for a release: Added, Changed, Removed, Fixed. Earlier entries
 were not retagged.
 
+## [Unreleased]
+
+### Added
+
+- [Visible] [Balance] **A new toggle floors a magically enhanced armour item's store price at the cheapest plain item of its own class that offers strictly more total AC, off by default.** Angband 4.2.6's own pricing formula can price an enchanted item below a plain item with more total AC, because a point of AC from a magic to-AC bonus is priced on a flatter scale than a point from the item's own base AC - a magical Studded Leather Armour (+2 AC, 14 total) prices at 266 gold, while a plain Hard Leather Armour (16 AC, no bonus) prices at 336. With this on, the enchanted item's price is floored at the cheapest ordinary item of its own class that offers strictly more AC, computed by the engine's own real pricing formula, never a second hand-written approximation of it - so an enchantment can no longer make an item a worse buy, gold for gold, than plainer, heavier armour on the same shelf. Uses the engine's new `registry:tval` `valueAdjust` seam (#179).
+
 ## 1.1.1 - 2026-09-11
 
 Internal maintenance only, nothing for a player to see: the local type mirrors

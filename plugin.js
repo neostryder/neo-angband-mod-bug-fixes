@@ -1,6 +1,52 @@
 // bug-fixes - generated from plugin.ts by neo-angband-mod-build
 // (@rpgm-tools/neo-angband-mod-sdk). Edit the TypeScript source, not this file.
 
+// armour-value.ts
+function plainObjectOf(kind, template) {
+  const flags = template.flags.clone();
+  flags.wipe();
+  return {
+    ...template,
+    kind,
+    tval: kind.tval,
+    sval: kind.sval,
+    ac: kind.ac,
+    toA: 0,
+    toH: kind.toH.base,
+    toD: kind.toD.base,
+    weight: kind.weight,
+    dd: kind.dd,
+    ds: kind.ds,
+    pval: 0,
+    ego: null,
+    artifact: null,
+    brands: null,
+    slays: null,
+    curses: null,
+    activation: null,
+    modifiers: template.modifiers.map(() => 0),
+    flags,
+    elInfo: template.elInfo.map(() => ({ resLevel: 0, flags: 0 }))
+  };
+}
+function cheapestBetterPlainValue(core, reg, tval, qty, totalAc, template) {
+  let cheapest = null;
+  for (const kind of reg.kinds) {
+    if (kind.tval !== tval || kind.ac <= totalAc) continue;
+    const value = core.objectValueReal(reg, plainObjectOf(kind, template), qty);
+    if (cheapest === null || value < cheapest) cheapest = value;
+  }
+  return cheapest;
+}
+function armourValueFloor(core, ctx) {
+  const { reg, obj, qty, baseValue, totalAc } = ctx;
+  const magical = obj.ego !== null && obj.ego !== void 0 || obj.toA > 0;
+  if (!magical) return baseValue;
+  const cheapestBetter = cheapestBetterPlainValue(core, reg, obj.tval, qty, totalAc, obj);
+  if (cheapestBetter === null) return baseValue;
+  return Math.max(baseValue, cheapestBetter);
+}
+
 // history.ts
 function expandRawUserNote(entry, playerName) {
   if (entry.expandUserInput !== true) return entry.what;
@@ -123,6 +169,26 @@ function miscStringFix(text) {
 }
 
 // plugin.ts
+var ARMOUR_TVALS = [
+  10,
+  // TV_BOOTS
+  11,
+  // TV_GLOVES
+  12,
+  // TV_HELM
+  13,
+  // TV_CROWN
+  14,
+  // TV_SHIELD
+  15,
+  // TV_CLOAK
+  16,
+  // TV_SOFT_ARMOR
+  17,
+  // TV_HARD_ARMOR
+  18
+  // TV_DRAG_ARMOR
+];
 var plugin_default = {
   api: 1,
   hooks(ctx) {
@@ -151,6 +217,25 @@ var plugin_default = {
       hooks.levelGenerated = (gen, quest) => ensureStairsReachable(gen, quest, core);
     }
     return hooks;
+  },
+  /**
+   * `registry:tval`. Installs only while its own toggle is on - a disabled
+   * rule is never called at all, so the game plays core's own faithful
+   * pricing rather than a branch this mod chose to skip.
+   *
+   * `requiresReload: true` on the manifest rule is why this lives in
+   * register() rather than hooks(): `valueAdjust` is a registry a mod
+   * installs into ONCE, with the live game built, not a per-turn hook the
+   * host rebuilds on every toggle flip.
+   */
+  register(host, ctx) {
+    if (ctx.flags["bugfix.armourValueFloor"] === true) {
+      const core = ctx.core;
+      for (const tval of ARMOUR_TVALS) {
+        host.tval.valueAdjust.set(tval, (adjCtx) => armourValueFloor(core, adjCtx));
+      }
+      ctx.log?.("bug-fixes: armour value floor installed (#179)");
+    }
   }
 };
 export {

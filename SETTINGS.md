@@ -8,3 +8,4 @@ Rules are rebuilt as live hooks, so their changes apply immediately. Sections al
 | `bugfix.levelGeneration` | on | Replaces a staircase stranded inside an unreachable vault. | No, hooks side. |
 | `bugfix.textAndHistory` | on | Corrects selected text, history, and lore descriptions. | Yes, section. |
 | `bugfix.borgFixes` | on | Checks Borg buff tracking against the engine's actual buff timers. | Yes, section. |
+| `bugfix.armourValueFloor` | off | Floors an enchanted armour item's price at the cheapest plain item of its own class with strictly more total AC. | Yes, registry:tval install. |

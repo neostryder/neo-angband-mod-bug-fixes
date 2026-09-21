@@ -52,6 +52,7 @@
  */
 
 import type { Gen, ModHooks } from "@rpgm-tools/neo-angband-core";
+import { armourValueFloor, type PricingCore, type ValueAdjustContext } from "./armour-value";
 import { expandRawUserNote } from "./history";
 import { ensureStairsReachable, type StairsCore } from "./stairs";
 import { miscStringFix } from "./strings";
@@ -63,7 +64,38 @@ import { miscStringFix } from "./strings";
  */
 interface HookCtx {
   readonly flags: Readonly<Record<string, boolean>>;
-  readonly core: StairsCore;
+  readonly core: StairsCore & PricingCore;
+  /** Emit a diagnostic line; the host decides where it goes. Present on register()'s ctx. */
+  readonly log?: (msg: string) => void;
+}
+
+/**
+ * The nine armour tvals (obj/object.ts's own `tvalIsArmor` list in the
+ * game's repository, reference/src/list-tvals.h order), spelled out as
+ * literal numbers because plugin.ts may import @rpgm-tools/neo-angband-core
+ * for TYPES only - a bare `TV.SOFT_ARMOR` value import would either fail
+ * the build or ship a private inlined copy of the engine (see this file's
+ * header). Keep this list in step with tvalIsArmor by hand.
+ */
+const ARMOUR_TVALS = [
+  10, // TV_BOOTS
+  11, // TV_GLOVES
+  12, // TV_HELM
+  13, // TV_CROWN
+  14, // TV_SHIELD
+  15, // TV_CLOAK
+  16, // TV_SOFT_ARMOR
+  17, // TV_HARD_ARMOR
+  18, // TV_DRAG_ARMOR
+] as const;
+
+/** The one registry facade this toggle reaches: registry:tval's `valueAdjust` table. */
+interface HostLike {
+  readonly tval: {
+    readonly valueAdjust: {
+      set(tval: number, handler: (ctx: ValueAdjustContext) => number): void;
+    };
+  };
 }
 
 export default {
@@ -218,5 +250,25 @@ export default {
   }
 
   return hooks;
+  },
+
+  /**
+   * `registry:tval`. Installs only while its own toggle is on - a disabled
+   * rule is never called at all, so the game plays core's own faithful
+   * pricing rather than a branch this mod chose to skip.
+   *
+   * `requiresReload: true` on the manifest rule is why this lives in
+   * register() rather than hooks(): `valueAdjust` is a registry a mod
+   * installs into ONCE, with the live game built, not a per-turn hook the
+   * host rebuilds on every toggle flip.
+   */
+  register(host: HostLike, ctx: HookCtx): void {
+    if (ctx.flags["bugfix.armourValueFloor"] === true) {
+      const core = ctx.core;
+      for (const tval of ARMOUR_TVALS) {
+        host.tval.valueAdjust.set(tval, (adjCtx) => armourValueFloor(core, adjCtx));
+      }
+      ctx.log?.("bug-fixes: armour value floor installed (#179)");
+    }
   },
 };

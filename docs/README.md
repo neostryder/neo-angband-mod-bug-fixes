@@ -18,13 +18,14 @@ switch has no flag of its own, the game knows it by its section id instead.
 | Level generation fixes | `bugfix.levelGeneration` | on | Anything that changes the layout a player walks around in. |
 | Text and history fixes | `bugfix.textAndHistory` | on | Item and monster descriptions, and anything else the game writes down or says, that say something the game no longer does or no longer means - no game state changes. |
 | Borg Fixes | `bugfix.borgFixes` | on | Corrections to the Borg's own bookkeeping - the Borg mod ports upstream Angband's own autoplayer, so a defect in how it tracks its own state is the same kind of fix as everything else here, just living in a different mod. |
+| Fix magical armour pricing below plainer armour | `bugfix.armourValueFloor` | off | Floors an enchanted armour item's store price at the cheapest plain item of its own class that offers strictly more total AC, so enchantment can never make an item a worse buy than plainer, heavier armour on the same shelf (#179). |
 
 ## What it needs
 
 - **Engine:** `>=1.2.0`
 - **Shape:** `content`
 - **Facets:** `content`, `plugin`
-- **Capabilities:** none. It contributes records and nothing else.
+- **Capabilities:** `registry:tval` - only while "Fix magical armour pricing below plainer armour" is on, to install its store-value adjustment.
 
 What a capability string permits, and what a mod that asks for one cannot do
 without it, is in [the mod lifecycle

@@ -9,6 +9,9 @@
   ],
   "modApi": 1,
   "engine": ">=1.2.0",
+  "capabilities": [
+    "registry:tval"
+  ],
   "dependencies": {
     "core": "*"
   },
@@ -27,6 +30,13 @@
       "title": "Level generation fixes",
       "description": "Anything that changes the layout a player walks around in. Vanilla level generation can seal a staircase inside a vault it never tunnelled into. Measured over 15,000 levels: 0.15% stranded, overwhelmingly the up stair, since a level gets only 1-2 up stairs but 3-4 down. This adds one reachable staircase on such a floor. It changes the layout of the levels it repairs, so a character played with this on is not layout-identical to one played without it - kept separate so a player who wants faithful layout is not forced to also give up the text and bookkeeping fixes.",
       "default": true
+    },
+    {
+      "flag": "bugfix.armourValueFloor",
+      "title": "Fix magical armour pricing below plainer armour",
+      "description": "Angband 4.2.6's own store-pricing formula can price an enchanted armour item below an ordinary item of the same class that offers strictly more total AC, because a point of AC earned through a magic to-AC bonus is priced on a flatter scale than a point earned through the item's own base AC (#179). Example: a magical Studded Leather Armour (+2 AC, 14 total AC) prices at 266 gold, while a plain Hard Leather Armour (16 AC, no bonus at all) prices at 336 - more armour for more gold, but less gold for the one that was actually enchanted. This floors an enchanted item's price at the cheapest ordinary item of its own class that offers strictly more total AC, so an enchantment can never make an item a worse buy than plainer, heavier armour on the same shelf. It changes store buy and sell prices for enchanted armour, so it defaults off, separately from the other fixes here, for a player who wants faithful 4.2.6 store economics.",
+      "default": false,
+      "requiresReload": true
     }
   ],
   "renamedRuleFlags": {
