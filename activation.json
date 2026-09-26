@@ -1,0 +1,44 @@
+{
+  "sections": {
+    "bugfix-text-and-history": {
+      "fieldPatches": {
+        "core:cure-full": [
+          {
+            "op": "set",
+            "path": "desc",
+            "value": [
+              "heals 35% of lost HP (minimum 300HP), cut damage, and cures stunning, poisoning, blindness, and confusion"
+            ]
+          }
+        ],
+        "core:deep-descent": [
+          {
+            "op": "set",
+            "path": "desc",
+            "value": [
+              "teleports you up to five levels below your maximum depth"
+            ]
+          }
+        ],
+        "core:destruction2": [
+          {
+            "op": "set",
+            "path": "desc",
+            "value": [
+              "destroys an area around you in the shape of a circle of radius 15, and blinds you for 1d10+10 turns"
+            ]
+          }
+        ],
+        "core:shroom-terror": [
+          {
+            "op": "set",
+            "path": "desc",
+            "value": [
+              "speeds you up temporarily but also makes you mortally afraid"
+            ]
+          }
+        ]
+      }
+    }
+  }
+}

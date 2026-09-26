@@ -1,0 +1,17 @@
+{
+  "sections": {
+    "bugfix-text-and-history": {
+      "fieldPatches": {
+        "core:explode": [
+          {
+            "op": "set",
+            "path": "msg",
+            "value": [
+              "There is a sudden explosion!  Everything inside the chest is destroyed!"
+            ]
+          }
+        ]
+      }
+    }
+  }
+}

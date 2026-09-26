@@ -2,8 +2,30 @@
   "sections": {
     "bugfix-text-and-history": {
       "fieldPatches": {
-        "core:priest": [
-          { "op": "set", "path": "book.4.spell.4.name", "value": "Light of Varda" }
+        "core:blackguard": [
+          {
+            "op": "set",
+            "path": "book.0.spell.4.desc",
+            "value": [
+              "You run up to 4 spaces towards the targeted enemy, then perform a melee blow.  You gain an additional blow at levels 25 and 40.  If you moved, the number of blows is reduced by 25% for each space, then rounded."
+            ]
+          }
+        ],
+        "core:necromancer": [
+          {
+            "op": "set",
+            "path": "book.1.spell.2.desc",
+            "value": [
+              "Attempts to put to sleep each evil monster within line of sight.  Monsters that resist sleep are not affected."
+            ]
+          },
+          {
+            "op": "set",
+            "path": "book.4.spell.2.desc",
+            "value": [
+              "Allows you to assume the form of a vampire at the cost of half your current hitpoints, then teleports you to the nearest living monster and drains a level-dependent number of hitpoints, healing and nourishing you.  When first transformed you will temporarily be able to take hitpoints from living monsters with your bite attack."
+            ]
+          }
         ]
       }
     }

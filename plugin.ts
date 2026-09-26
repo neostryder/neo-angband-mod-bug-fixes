@@ -55,7 +55,7 @@ import type { Gen, ModHooks } from "@rpgm-tools/neo-angband-core";
 import { armourValueFloor, type PricingCore, type ValueAdjustContext } from "./armour-value";
 import { expandRawUserNote } from "./history";
 import { ensureStairsReachable, type StairsCore } from "./stairs";
-import { miscStringFix } from "./strings";
+import { textAndHistoryMessage } from "./strings";
 
 /**
  * What this plugin needs from the host's context, structurally. Declared here
@@ -142,7 +142,7 @@ export default {
      * an exact-match table on purpose - messages arrive interpolated, so a general
      * rewrite would edit inscriptions and names the player typed.
      */
-    hooks.messageText = (raw): string => miscStringFix(raw);
+    hooks.messageText = (raw): string => textAndHistoryMessage(raw);
   }
 
   /*

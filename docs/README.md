@@ -1,6 +1,6 @@
 # Bug Fixes: quick reference
 
-Opt-in fixes for bugs in Angband 4.2.6, in the model of an unofficial patch.
+Opt-in fixes for bugs in Angband 4.2.6, in the style of an unofficial patch.
 
 This page is the short version: every setting, what the mod asks the game for,
 and where the longer material is. The account of why each of these exists is in
@@ -14,10 +14,10 @@ switch has no flag of its own, the game knows it by its section id instead.
 
 | Setting | Identifier | Default | What it does |
 | --- | --- | --- | --- |
-| State integrity fixes | `bugfix.stateIntegrity` | on | The game's own bookkeeping staying consistent with itself, including across a save and reload. |
-| Level generation fixes | `bugfix.levelGeneration` | on | Anything that changes the layout a player walks around in. |
-| Text and history fixes | `bugfix.textAndHistory` | on | Item and monster descriptions, and anything else the game writes down or says, that say something the game no longer does or no longer means - no game state changes. |
-| Borg Fixes | `bugfix.borgFixes` | on | Corrections to the Borg's own bookkeeping - the Borg mod ports upstream Angband's own autoplayer, so a defect in how it tracks its own state is the same kind of fix as everything else here, just living in a different mod. |
+| State integrity fixes | `bugfix.stateIntegrity` | on | Keeps the game's own bookkeeping consistent with itself, including across a save and reload. |
+| Level generation fixes | `bugfix.levelGeneration` | on | Fixes that change the layout of a level. |
+| Text and history fixes | `bugfix.textAndHistory` | on | Corrects text the game shows you, with no change to game state. [TEXT_CHANGES.md](../TEXT_CHANGES.md) lists every change. |
+| Borg Fixes | `bugfix.borgFixes` | on | Fixes for the Borg's own bookkeeping. |
 | Fix magical armour pricing below plainer armour | `bugfix.armourValueFloor` | off | Floors an enchanted armour item's store price at the cheapest plain item of its own class that offers strictly more total AC, so enchantment can never make an item a worse buy than plainer, heavier armour on the same shelf (#179). |
 
 ## What it needs

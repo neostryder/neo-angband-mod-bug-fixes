@@ -153,19 +153,54 @@ function ensureStairsReachable(g, quest, core) {
 
 // strings.ts
 var MISC_STRING_CORRECTIONS = {
-  /* effect-handler-general.c: its three sibling messages ("Bad effect
-   * description passed to effect_info().  Please report this bug." and friends)
-   * are double-spaced, so this one is a slip and not a house style. */
+  /* effects.c, effect_do(): its sibling messages ("Bad effect description
+   * passed to effect_info().  Please report this bug." in effects-info.c and
+   * friends) are double-spaced, so this one is a slip and not a house style. */
   "Bad effect passed to effect_do(). Please report this bug.": "Bad effect passed to effect_do().  Please report this bug.",
-  /* effect-handler-general.c, EARTHQUAKE. */
+  /* effect-handler-attack.c, EARTHQUAKE. */
   "The ground shakes! The ceiling caves in!": "The ground shakes!  The ceiling caves in!",
   /* mon-make.c place_new_monster_one's allocation failure. */
   "Warning! Could not allocate a new monster.": "Warning!  Could not allocate a new monster.",
-  /* effect-handler-general.c, the unresisted cold branch. */
+  /* obj-gear.c, wielding an item with a sticky curse. */
   "Oops! It feels deathly cold!": "Oops!  It feels deathly cold!"
 };
 function miscStringFix(text) {
   return MISC_STRING_CORRECTIONS[text] ?? text;
+}
+var MESSAGE_CORRECTIONS = {
+  /* cmd-cave.c, taking a down staircase on the deepest level. */
+  "The dungeon does not appear to extend deeper": "The dungeon does not appear to extend deeper.",
+  /* cmd-obj.c, using an item whose effect cannot run right now. */
+  "The item cannot be used at the moment": "The item cannot be used at the moment.",
+  /* ui-game.c, the lore and death saves failing. */
+  "lore save failed!": "Lore save failed!",
+  "death save failed!": "Death save failed!"
+};
+var MESSAGE_FORMAT_CORRECTIONS = [
+  /* effect-handler-general.c, turning an item with too little energy into mana. */
+  ["That %s had no useable energy", "That %s had no useable energy."],
+  /* mon-util.c, a thief's gold steal. */
+  ["You steal %d gold pieces worth of treasure.", "You steal %d gold pieces' worth of treasure."]
+];
+var escapeRegExp = (s) => s.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&");
+function formatPattern(format) {
+  const body = format.split(/(%[sd])/u).map((part) => part === "%s" ? "(.+?)" : part === "%d" ? "(-?\\d+)" : escapeRegExp(part)).join("");
+  return new RegExp(`^${body}$`, "u");
+}
+var FORMAT_ROWS = MESSAGE_FORMAT_CORRECTIONS.map(([from, to]) => ({ re: formatPattern(from), to }));
+function refill(format, values) {
+  let i = 0;
+  return format.replace(/%[sd]/gu, () => values[i++] ?? "");
+}
+function textAndHistoryMessage(text) {
+  const spaced = miscStringFix(text);
+  const exact = MESSAGE_CORRECTIONS[spaced];
+  if (exact !== void 0) return exact;
+  for (const row of FORMAT_ROWS) {
+    const m = row.re.exec(spaced);
+    if (m) return refill(row.to, m.slice(1));
+  }
+  return spaced;
 }
 
 // plugin.ts
@@ -204,7 +239,7 @@ var plugin_default = {
         return true;
       };
       hooks.historyDisplay = expandRawUserNote;
-      hooks.messageText = (raw) => miscStringFix(raw);
+      hooks.messageText = (raw) => textAndHistoryMessage(raw);
     }
     if (flags["bugfix.stateIntegrity"] === true) {
       hooks.saveNoiseScent = () => true;

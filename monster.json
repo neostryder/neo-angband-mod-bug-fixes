@@ -1,0 +1,188 @@
+{
+  "sections": {
+    "bugfix-text-and-history": {
+      "fieldPatches": {
+        "core:5-headed-hydra": [
+          {
+            "op": "set",
+            "path": "desc",
+            "value": [
+              "A 4-headed hydra with an extra head, steaming with acidic vapour."
+            ]
+          }
+        ],
+        "core:blood-falcon": [
+          {
+            "op": "set",
+            "path": "desc",
+            "value": [
+              "A blinding whirlwind of fear and feathers.  Its razor-sharp beak and talons fill its foes with terror as it seeks to rend flesh from bone with unbridled ferocity."
+            ]
+          }
+        ],
+        "core:crow": [
+          {
+            "op": "set",
+            "path": "desc",
+            "value": [
+              "It is a hooded crow, grey except for the black wings and head."
+            ]
+          }
+        ],
+        "core:doombat": [
+          {
+            "op": "set",
+            "path": "desc",
+            "value": [
+              "It is a fast-moving creature of chaos, a gigantic black bat surrounded by flickering bright red flames."
+            ]
+          }
+        ],
+        "core:draugluin-sire-of-all-werewolves": [
+          {
+            "op": "set",
+            "path": "desc",
+            "value": [
+              "Draugluin provides Sauron with a fearsome personal guard.  He is an enormous wolf inhabited by a human spirit.  He is chief of all his kind."
+            ]
+          }
+        ],
+        "core:drolem": [
+          {
+            "op": "set",
+            "path": "desc",
+            "value": [
+              "A constructed dragon, the drolem has massive strength.  Powerful spells woven during its creation make it a fearsome adversary.  Its eyes show little intelligence, but it has been instructed to destroy all it meets."
+            ]
+          }
+        ],
+        "core:fundin-bluecloak": [
+          {
+            "op": "set",
+            "path": "desc",
+            "value": [
+              "He is one of the greatest dwarven priests to walk the earth.  Fundin has earned a high position in the church, and his skill with both weapon and spell only justifies his position further.  His combination of both dwarven strength and priestly wisdom is a true match for any adventurer."
+            ]
+          }
+        ],
+        "core:glabrezu": [
+          {
+            "op": "set",
+            "path": "desc",
+            "value": [
+              "It is a demon with arms and pincers, its form a true mockery of life."
+            ]
+          }
+        ],
+        "core:half-orc": [
+          {
+            "op": "set",
+            "path": "desc",
+            "value": [
+              "He is a hideous deformed cross-breed of man and orc, combining man's strength and cunning with orcish evil.  The traitorous wizard Saruman is generally believed to be responsible for this abomination."
+            ]
+          }
+        ],
+        "core:maia-of-varda": [
+          {
+            "op": "set",
+            "path": "desc",
+            "value": [
+              "A servant of Varda, Lady of the Stars, whom the elves call Elbereth and love above all the Valar."
+            ]
+          }
+        ],
+        "core:morgoth-lord-of-darkness": [
+          {
+            "op": "set",
+            "path": "desc",
+            "value": [
+              "He is the Master of the Pits of Angband.  His figure is like a black mountain crowned with lightning.  He rages with everlasting anger, his body scarred by Fingolfin's seven mighty wounds.  He can never rest from his pain, but seeks forever to dominate all that is light and good in the world.  He is the origin of man's fear of darkness and created many foul creatures with his evil powers.  Orcs, Dragons, and Trolls are his most foul corruptions, causing much pain and suffering in the world to please him.  His disgusting visage, twisted with evil, is crowned with iron, the two remaining Silmarils forever burning him.  Grond, the mighty Hammer of the Underworld, cries defiance as he strides towards you to crush you to a pulp!"
+            ]
+          }
+        ],
+        "core:nexus-hound": [
+          {
+            "op": "set",
+            "path": "desc",
+            "value": [
+              "A locus of conflicting points coalesces to form the vague shape of a huge hound.  Or is it just your imagination?"
+            ]
+          }
+        ],
+        "core:night-mare": [
+          {
+            "op": "set",
+            "path": "desc",
+            "value": [
+              "A fearsome skeletal horse with glowing eyes that watch you with little more than a hatred of all that lives."
+            ]
+          }
+        ],
+        "core:ochre-jelly": [
+          {
+            "op": "set",
+            "path": "desc",
+            "value": [
+              "A fast-moving, highly acidic jelly thing that is eating away the floor it rests on."
+            ]
+          }
+        ],
+        "core:old-man-willow": [
+          {
+            "op": "set",
+            "path": "desc",
+            "value": [
+              "The ancient grey willow tree, ruler of the Old Forest.  He despises trespassers in his territory.  \"...a huge willow-tree, old and hoary.  Enormous it looked, its sprawling branches going up like reaching arms with many long-fingered hands, its knotted and twisted trunk gaping in wide fissures that creaked faintly as the boughs moved.\""
+            ]
+          }
+        ],
+        "core:oss-herald-of-ulmo": [
+          {
+            "op": "set",
+            "path": "desc",
+            "value": [
+              "Encrusted with barnacles, slimy and dripping, the Maia of the untamed sea has dragged himself down into Angband to send you to a watery grave.  Ossë is the most powerful and heartless of Ulmo's servants and embodies the untamed power of the ocean.  Terror grows in your heart with each squelching step of his approach."
+            ]
+          }
+        ],
+        "core:southron-archer": [
+          {
+            "op": "set",
+            "path": "desc",
+            "value": [
+              "A man of Harad clad in black and red and carrying a longbow.  His quiver is full of red-feathered arrows, and carries an insignia of a black serpent."
+            ]
+          }
+        ],
+        "core:ungoliant-the-unlight": [
+          {
+            "op": "set",
+            "path": "desc",
+            "value": [
+              "This enormous, hideous spirit of void is in the form of a spider of immense proportions.  She is surrounded by a cloud of Unlight as she sucks all living light into her bloated body, and breathes out the blackest of darkness.  She is always ravenously hungry and would even eat herself to avoid starvation."
+            ]
+          }
+        ],
+        "core:uvatha-the-horseman": [
+          {
+            "op": "set",
+            "path": "desc",
+            "value": [
+              "A tall black-cloaked Ringwraith, he is a master of horsemanship.  He longs to taste your blood."
+            ]
+          }
+        ],
+        "core:wererat": [
+          {
+            "op": "set",
+            "path": "desc",
+            "value": [
+              "A large rat with glowing red eyes.  The wererat is a disgusting creature, revelling in filth and disease."
+            ]
+          }
+        ]
+      }
+    }
+  }
+}

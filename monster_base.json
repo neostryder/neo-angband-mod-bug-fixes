@@ -1,0 +1,17 @@
+{
+  "sections": {
+    "bugfix-text-and-history": {
+      "fieldPatches": {
+        "core:ainu": [
+          {
+            "op": "set",
+            "path": "desc",
+            "value": [
+              "Ainu/Maia"
+            ]
+          }
+        ]
+      }
+    }
+  }
+}

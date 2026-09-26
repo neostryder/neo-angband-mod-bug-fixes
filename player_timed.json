@@ -1,0 +1,26 @@
+{
+  "sections": {
+    "bugfix-text-and-history": {
+      "fieldPatches": {
+        "core:command": [
+          {
+            "op": "set",
+            "path": "on-end",
+            "value": [
+              "You resume control of your own body."
+            ]
+          }
+        ],
+        "core:heal": [
+          {
+            "op": "set",
+            "path": "on-end",
+            "value": [
+              "Your metabolism returns to normal."
+            ]
+          }
+        ]
+      }
+    }
+  }
+}

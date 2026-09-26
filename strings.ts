@@ -53,22 +53,22 @@
  * it uses everywhere else. Keys are the upstream text VERBATIM; the host must
  * hand this function the finished message for the lookup to hit.
  *
- * "Non-existent glyph requested. Please report this bug." (ui-prefs.c) is a
+ * "Non-existent glyph requested. Please report this bug." (cave-square.c) is a
  * fifth instance upstream, deliberately absent here: the port has no glyph
  * request path to emit it (text-census KNOWN_ABSENT, internal-error category),
  * so a row for it would be a rule nothing can ever apply.
  */
 export const MISC_STRING_CORRECTIONS: Readonly<Record<string, string>> = {
-  /* effect-handler-general.c: its three sibling messages ("Bad effect
-   * description passed to effect_info().  Please report this bug." and friends)
-   * are double-spaced, so this one is a slip and not a house style. */
+  /* effects.c, effect_do(): its sibling messages ("Bad effect description
+   * passed to effect_info().  Please report this bug." in effects-info.c and
+   * friends) are double-spaced, so this one is a slip and not a house style. */
   "Bad effect passed to effect_do(). Please report this bug.":
     "Bad effect passed to effect_do().  Please report this bug.",
-  /* effect-handler-general.c, EARTHQUAKE. */
+  /* effect-handler-attack.c, EARTHQUAKE. */
   "The ground shakes! The ceiling caves in!": "The ground shakes!  The ceiling caves in!",
   /* mon-make.c place_new_monster_one's allocation failure. */
   "Warning! Could not allocate a new monster.": "Warning!  Could not allocate a new monster.",
-  /* effect-handler-general.c, the unresisted cold branch. */
+  /* obj-gear.c, wielding an item with a sticky curse. */
   "Oops! It feels deathly cold!": "Oops!  It feels deathly cold!",
 };
 
@@ -112,4 +112,67 @@ export const MISSPELLINGS: readonly (readonly [string, string])[] = [
  */
 export function miscStringFix(text: string): string {
   return MISC_STRING_CORRECTIONS[text] ?? text;
+}
+
+/**
+ * Plain errors in upstream's own messages other than sentence spacing: a missing
+ * full stop, a missing capital letter, a missing possessive apostrophe. Keys are
+ * the upstream text VERBATIM, as the finished message reaches the sink.
+ * TEXT_CHANGES.md lists each row with its upstream source line.
+ */
+export const MESSAGE_CORRECTIONS: Readonly<Record<string, string>> = {
+  /* cmd-cave.c, taking a down staircase on the deepest level. */
+  "The dungeon does not appear to extend deeper": "The dungeon does not appear to extend deeper.",
+  /* cmd-obj.c, using an item whose effect cannot run right now. */
+  "The item cannot be used at the moment": "The item cannot be used at the moment.",
+  /* ui-game.c, the lore and death saves failing. */
+  "lore save failed!": "Lore save failed!",
+  "death save failed!": "Death save failed!",
+};
+
+/**
+ * The same kind of fix for messages built from a format string. Each row is
+ * upstream's format and its correction, and `%s` / `%d` stand for whatever the
+ * game filled in; the filled-in text is carried over untouched and in order.
+ */
+export const MESSAGE_FORMAT_CORRECTIONS: readonly (readonly [string, string])[] = [
+  /* effect-handler-general.c, turning an item with too little energy into mana. */
+  ["That %s had no useable energy", "That %s had no useable energy."],
+  /* mon-util.c, a thief's gold steal. */
+  ["You steal %d gold pieces worth of treasure.", "You steal %d gold pieces' worth of treasure."],
+];
+
+const escapeRegExp = (s: string): string => s.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&");
+
+/** One upstream format string as an anchored pattern: %s is any text, %d a whole number. */
+function formatPattern(format: string): RegExp {
+  const body = format
+    .split(/(%[sd])/u)
+    .map((part) => (part === "%s" ? "(.+?)" : part === "%d" ? "(-?\\d+)" : escapeRegExp(part)))
+    .join("");
+  return new RegExp(`^${body}$`, "u");
+}
+
+const FORMAT_ROWS = MESSAGE_FORMAT_CORRECTIONS.map(([from, to]) => ({ re: formatPattern(from), to }));
+
+/** Fill a corrected format with the values the game put into the original. */
+function refill(format: string, values: readonly string[]): string {
+  let i = 0;
+  return format.replace(/%[sd]/gu, () => values[i++] ?? "");
+}
+
+/**
+ * Everything "Text and history fixes" does to a message: the spacing table, then
+ * the wording table, then the format rows. Identity for any message none of them
+ * names.
+ */
+export function textAndHistoryMessage(text: string): string {
+  const spaced = miscStringFix(text);
+  const exact = MESSAGE_CORRECTIONS[spaced];
+  if (exact !== undefined) return exact;
+  for (const row of FORMAT_ROWS) {
+    const m = row.re.exec(spaced);
+    if (m) return refill(row.to, m.slice(1));
+  }
+  return spaced;
 }

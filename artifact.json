@@ -14,6 +14,35 @@
             " engraved in filleted gold with spells to ward off the elements."
           ]
         }
+      },
+      "fieldPatches": {
+        "core:nimloth": [
+          {
+            "op": "set",
+            "path": "desc",
+            "value": [
+              "A thin spike of thrice-forged steel caps a straight silvan shaft cut from a legendary tree, and spells to break the wills of the undead and strike cold into the breasts of your enemies lie upon this perfectly balanced spear."
+            ]
+          }
+        ],
+        "core:of-morgoth": [
+          {
+            "op": "set",
+            "path": "desc",
+            "value": [
+              "Containing much of the power of him who once was mightiest among the Ainur, this plain iron crown has mounted upon it the two remaining Silmarils, greatest treasures of Middle-Earth."
+            ]
+          }
+        ],
+        "core:thunderfist": [
+          {
+            "op": "set",
+            "path": "desc",
+            "value": [
+              "The long-lost weapon of Kzurin, Dwarven champion of ancient Belegost.  Runes of strength adorn its handle, and flames and sparks roar and crackle around its massive head."
+            ]
+          }
+        ]
       }
     }
   }

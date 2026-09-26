@@ -1,0 +1,17 @@
+{
+  "sections": {
+    "bugfix-text-and-history": {
+      "fieldPatches": {
+        "core:steelskin": [
+          {
+            "op": "set",
+            "path": "desc",
+            "value": [
+              "makes your skin harder to damage, but it conducts electricity"
+            ]
+          }
+        ]
+      }
+    }
+  }
+}

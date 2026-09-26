@@ -9,8 +9,39 @@
           ]
         },
         "core:polearm--pike": {
-          "desc": ["A fifteen foot spear, principally used in infantry formations."]
+          "desc": [
+            "A fifteen foot spear, principally used in infantry formations."
+          ]
         }
+      },
+      "fieldPatches": {
+        "core:crown--jewel-encrusted-crown": [
+          {
+            "op": "set",
+            "path": "desc",
+            "value": [
+              "An elaborately decorated crown of massive gold, studded with a rainbow of gems and jewels; worthy of a High King."
+            ]
+          }
+        ],
+        "core:food--ration-of-food": [
+          {
+            "op": "set",
+            "path": "desc",
+            "value": [
+              "This nutritious but fairly bland food, called cram by the Lake-men who make it, is familiar to anyone contemplating long journeys.  It is sustaining, but very uninteresting except as a chewing exercise."
+            ]
+          }
+        ],
+        "core:polearm--broad-axe": [
+          {
+            "op": "set",
+            "path": "desc",
+            "value": [
+              "A simple, single-bladed war axe capable of chopping through limbs or armour."
+            ]
+          }
+        ]
       }
     }
   }

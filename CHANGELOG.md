@@ -20,6 +20,24 @@ were not retagged.
 
 ## [Unreleased]
 
+### Added
+
+- [Visible] [Content] **Text and history fixes corrects 40 more of Angband 4.2.6's descriptions.** Typos, grammar and wrong facts in monster, item, spell and effect text, such as Morgoth's description giving Fingolfin's wounds as eight where the game's own artifact text says seven, and Sleep Evil saying it is resisted by confusion resistance when sleep resistance is what stops it.
+
+- [Visible] [Content] **Six more upstream messages get a missing full stop, capital letter or apostrophe.** Messages that fill in a value, such as "That %s had no useable energy", are matched by their format, so the filled-in name passes through unchanged.
+
+- [Visible] [Docs] **TEXT_CHANGES.md lists every text change the switch makes.** Each entry gives the upstream file and line, the text before and after, and the reason; a test keeps the list, the patches and the message tables in step.
+
+### Changed
+
+- [Visible] [Content] **Light of Varda and "blessed by the Valar" moved to Upstream Catchup.** Both are wording upstream itself corrected after 4.2.6, so they now ship under that mod's Post-4.2.6 text corrections; with only Bug Fixes enabled, the Priest spell is Light of Manwë again.
+
+- [Visible] [UI] **Setting descriptions read more plainly.** The mod and rule descriptions in the mod manager are rewritten for clarity, and the Text and history description now covers everything the switch does.
+
+### Fixed
+
+- [Internal] **Comments in the message table name the right upstream source files.** Four rows and one note cited the wrong C file.
+
 ## 1.2.0 - 2026-09-20
 
 ### Added
