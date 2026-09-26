@@ -20,6 +20,8 @@ were not retagged.
 
 ## [Unreleased]
 
+## 1.3.0 - 2026-09-26
+
 ### Added
 
 - [Visible] [Content] **Text and history fixes corrects 40 more of Angband 4.2.6's descriptions.** Typos, grammar and wrong facts in monster, item, spell and effect text, such as Morgoth's description giving Fingolfin's wounds as eight where the game's own artifact text says seven, and Sleep Evil saying it is resisted by confusion resistance when sleep resistance is what stops it.
