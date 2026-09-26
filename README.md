@@ -11,41 +11,25 @@ Angband 4.2.6 is.
 
 ## Why this is a mod and not a better port
 
-Neo Angband is an exact-parity port: bugs inherited from the reference code are
-out of scope for the port itself and belong in this mod instead, while core
-retains every wart of the reference code on purpose. A port that quietly fixed
-things would stop being a port, and worse, you could never tell which of its
-behaviours were Angband's and which were someone's opinion.
+Neo Angband is an exact-parity port. Bugs inherited from the reference code are out of scope for the port itself and belong in this mod, and core keeps every wart of the reference code. A port that quietly fixed things would stop being a port, and you could never tell which of its behaviours were Angband's and which were someone's opinion.
 
-So the engine reproduces each of these faults, on purpose, and the engine's own test
-suite has CONTROL tests pinning them: move one of these fixes back into core and the
-suite fails and says why.
+So the engine reproduces each of these faults, and its test suite has control tests pinning them: move one of these fixes back into core and the suite fails and says why.
 
-Every fix here is also *absent* rather than switched off when you turn it off. There is
-no `bugfix.*` string anywhere in the engine. A flag-gated fix compiled into core would
-still be core shipping the fix; this ships nothing.
+When you turn a fix off, its code is absent from the game. There is no `bugfix.*` string anywhere in the engine. A flag-gated fix compiled into core would still be core shipping the fix; core ships none of these.
 
 ## What it fixes
 
-One player-facing toggle per **class** of fix, not one per atomic fix. A player
-can reason about each class without reading engine code.
-
-See the [settings reference](SETTINGS.md) for every flag, its default, and when a change takes effect.
+Each toggle covers a **class** of fixes rather than a single fix, so you can decide on each class without reading engine code. The [settings reference](SETTINGS.md) lists every flag, its default, and when a change takes effect. The diagnosis of each bug against the C source is in [BUG_FIXES.md](https://github.com/neostryder/neo-angband/blob/master/docs/modding/BUG_FIXES.md) in the main repository.
 
 | Toggle | What it covers | What it does |
 |---|---|---|
-| **Text and history** (`bugfix.textAndHistory`) | Weapon lore text; [#4245](https://github.com/angband/angband/issues/4245); [#6665](https://github.com/angband/angband/issues/6665); misc. strings; lore text | What the game writes down or says, with no game state changes. Corrects four item descriptions still written for a two-handed-weapon rule Angband 4.2 dropped (the Two-Handed Great Flail, the Pike, the Trident "of Wrath" and "Mundwine" - text only, no damage, weight, or slot changes). Drops a duplicate "Killed X" history entry when a unique is reached again through a shape-change or projection death path, and retains the raw text of player notes so a long player name cannot truncate a full `/say` note in saved history or a character dump. Corrects upstream's own cosmetic message warts at the host's single message sink (exact-match table on purpose: messages arrive already interpolated, so a general rewrite would edit inscriptions and names you typed). Renames the Priest spell Light of Manwë to Light of Varda and says the blessed property is blessed by the Valar. |
-| **State integrity** (`bugfix.stateIntegrity`) | [#4605](https://github.com/angband/angband/issues/4605), [#4664](https://github.com/angband/angband/issues/4664), [#4510](https://github.com/angband/angband/issues/4510), #6355, [#4666](https://github.com/angband/angband/issues/4666) | The game's own bookkeeping staying consistent with itself, including across a save and reload. Writes the noise and scent heatmaps to the save so monsters track you identically after a reload. Adds a deterministic geometric tiebreak to the floor object list (nearer-to-top first, then leftmost) because upstream's `compare_items` is not a strict weak order. Refuses to commit an object that already carries a created artifact a second time. Refuses to merge a partial stack of wands or staves into an already-full stack, which stops charges drifting between the two on repeated drop and pickup. Sheds the item that actually left your quiver when a pack overflow follows an inscription change, instead of an unrelated item. |
-| **Level generation** (`bugfix.levelGeneration`) | reachable staircases | Anything that changes the layout a player walks around in, kept separate so a player who wants faithful layout is not forced to also give up the text and bookkeeping fixes. `alloc_stairs` does not exclude vault interiors and `ensure_connectedness` runs with `allow_vault_disconnect` at five of its six sites, so a vault the tunneller never joined can swallow a staircase. **Measured by the engine over 15,000 levels: 22 stranded, 0.15%**, overwhelmingly the up stair, because a level gets 3-4 down stairs against only 1-2 up, so one bad roll strands the floor. Confirmed here at engine 0.24.0 on a fresh sweep of 520 levels across depths 5 to 90: 4 stranded, all four the up stair. This section used to cite 10.2%; that figure was real but its non-vault majority was a defect in the port's own streamer code rather than inherited behaviour, and it has since been fixed in the engine. So this is a rare wart, not a common one. Places one reachable replacement, as close to the stranded original as the rules allow. |
-| **Borg Fixes** (`bugfix.borgFixes`) | Borg buff-timer bookkeeping | Corrections to the Borg mod's own behaviour, rather than to core - the Borg mod ports upstream Angband's own autoplayer, so a defect in how it tracks its own state is the same kind of fix as everything else in this list. Cross-checks the Borg's message-derived buff tracking against the player's own real, engine-reported buff timers, so a missed or garbled message cannot leave a buff flag latched on long after the real buff has actually expired. **Greyed out and forced off unless the Borg mod is installed** - it has nothing to patch without it. |
-| **Fix magical armour pricing below plainer armour** (`bugfix.armourValueFloor`) | [neostryder/neo-angband#179](https://github.com/neostryder/neo-angband/issues/179) | Angband 4.2.6's own store-pricing formula can price an enchanted armour item below a plain item of the same class with strictly more total AC, because a point of AC from a magic to-AC bonus is priced on a flatter scale than a point from the item's own base AC. A magical Studded Leather Armour (+2 AC, 14 total AC) prices at 266 gold; a plain Hard Leather Armour (16 AC, no bonus) prices at 336 - more armour for more gold, but less gold for the one that was actually enchanted. This floors an enchanted item's price at the cheapest plain item of its own class that offers strictly more total AC, computed by the engine's own real pricing formula against a synthetic plain object, never a second hand-written approximation of it. Uses the `registry:tval` capability. **Defaults off**, separately from the other fixes here: it changes store buy and sell prices, and a player who wants faithful 4.2.6 store economics should not have to give up the rest of this mod to keep them. |
+| **Text and history** (`bugfix.textAndHistory`) | Weapon lore text; [#4245](https://github.com/angband/angband/issues/4245); [#6665](https://github.com/angband/angband/issues/6665); misc. strings; lore text | Changes what the game writes down or says, and never game state. Corrects four item descriptions still written for a two-handed-weapon rule Angband 4.2 dropped (the Two-Handed Great Flail, the Pike, the Trident "of Wrath" and "Mundwine"); this is text only, with no change to damage, weight or slot. Drops a duplicate "Killed X" history entry when a unique is reached again through a shape-change or projection death path. Keeps the raw text of player notes, so a long player name cannot truncate a full `/say` note in saved history or a character dump. Corrects upstream's own cosmetic message warts at the single point where messages are shown, using an exact-match table, because messages arrive already filled in and a general rewrite would edit inscriptions and names you typed. Renames the Priest spell Light of Manwë to Light of Varda and says the blessed property is blessed by the Valar. |
+| **State integrity** (`bugfix.stateIntegrity`) | [#4605](https://github.com/angband/angband/issues/4605), [#4664](https://github.com/angband/angband/issues/4664), [#4510](https://github.com/angband/angband/issues/4510), #6355, [#4666](https://github.com/angband/angband/issues/4666) | Keeps the game's own bookkeeping consistent with itself, including across a save and reload. Writes the noise and scent heatmaps to the save so monsters track you the same way after a reload. Adds a deterministic geometric tiebreak to the floor object list (nearer the top first, then leftmost), because upstream's item comparison does not produce a consistent order. Refuses to commit an object that already carries a created artifact a second time. Refuses to merge a partial stack of wands or staves into an already-full stack, which stops charges drifting between the two on repeated drop and pickup. When a pack overflow follows an inscription change, drops the item that actually left your quiver instead of an unrelated one. |
+| **Level generation** (`bugfix.levelGeneration`) | reachable staircases | Anything that changes the layout you walk around in. It is a separate toggle so you can keep faithful layout without giving up the text and bookkeeping fixes. Upstream's stair placement does not exclude vault interiors, and its connectivity pass lets vaults stay disconnected at five of its six call sites, so a vault the tunneller never joined can swallow a staircase. The engine found 22 stranded levels in 15,000 (0.15%), almost always the up stair, because a level gets 3-4 down stairs against only 1-2 up, so one bad roll strands the floor. A fresh sweep here at engine 0.24.0, 520 levels across depths 5 to 90, found 4 stranded, all four the up stair. An earlier version of this section cited 10.2%; that figure was real, but most of its non-vault cases came from a defect in the port's own streamer code, since fixed in the engine. It is a rare wart. The fix places one reachable replacement stair as close to the stranded original as the rules allow. |
+| **Borg Fixes** (`bugfix.borgFixes`) | Borg buff-timer bookkeeping | Corrects the Borg mod's own behaviour, not core's. The Borg mod ports upstream Angband's own autoplayer, so a defect in how it tracks its own state belongs here like everything else in this list. Checks the Borg's message-based buff tracking against the player's real buff timers as the engine reports them, so a missed or garbled message cannot leave a buff flag stuck on after the buff has expired. **Greyed out and forced off unless the Borg mod is installed**, since it has nothing to patch without it. |
+| **Fix magical armour pricing below plainer armour** (`bugfix.armourValueFloor`) | [neostryder/neo-angband#179](https://github.com/neostryder/neo-angband/issues/179) | Angband 4.2.6's store-pricing formula can price an enchanted armour below a plain armour of the same class with strictly more total AC, because a point of AC from a magical to-AC bonus is priced on a flatter scale than a point of the item's base AC. A magical Studded Leather Armour (+2 AC, 14 total AC) costs 266 gold, while a plain Hard Leather Armour (16 AC, no bonus) costs 336. This fix raises an enchanted item's price to at least that of the cheapest plain item of its class with strictly more total AC, using the engine's real pricing formula on a synthetic plain object instead of a hand-written approximation. Uses the `registry:tval` capability. **Off by default**, separately from the other fixes: it changes store buy and sell prices, and a player who wants faithful 4.2.6 store economics should not have to give up the rest of this mod to keep them. |
 
-The first four default to on **once the mod is enabled**, which is not the same as on; the armour price floor defaults off, since it changes store economics rather than correcting a bookkeeping or layout defect.
-The weapon lore text corrections are filed under **Text and history** rather than
-a toggle of their own: whether the game's text is being corrected is the only
-question that toggle needs to answer, whatever the underlying mechanism - a
-runtime message patch and a gamedata content patch are the same class of fix at
-the player-facing level.
+The first four toggles default to on **once the mod is enabled**; the mod itself starts off. The armour price floor defaults to off, because it changes store economics instead of correcting a bookkeeping or layout defect. The weapon lore text corrections come under **Text and history** instead of getting their own toggle, since that toggle only answers whether the game's text is corrected, whatever the mechanism: a runtime message patch and a gamedata content patch are the same class of fix from the player's side.
 
 ### The staircase fix uses no randomness
 
@@ -69,17 +53,11 @@ Two files: `manifest.json` and `plugin.js`. Any of:
 - **A folder** - clone this repository into your mods directory, or point the browser
   build at it with **Load mod folder**.
 
-`plugin.js` is generated from `plugin.ts`, `stairs.ts`, `strings.ts` and
-`armour-value.ts` in this repository, bundled into one module. It is committed because
-that is what an install fetches. Edit the source, not this file, and if you are
-reading it to decide whether to trust it, that is exactly why it ships unminified.
+`plugin.js` is generated from `plugin.ts`, `stairs.ts`, `strings.ts` and `armour-value.ts` in this repository, bundled into one module. It is committed because that is what an install fetches. Edit the source, not this file. It ships unminified so you can read it before deciding whether to trust it.
 
 ## Working on it
 
-The source lives here now, and so do the tests. They boot a **real game** against the
-published engine (`@rpgm-tools/neo-angband-core`) rather than a fake, because a
-staircase-reachability fix proven against a hand-built cave is a fix proven against a
-fixture: the staircase tests generate real levels at real depths.
+The source and the tests live in this repository. The tests boot a **real game** against the published engine (`@rpgm-tools/neo-angband-core`) instead of a fake, so the staircase tests generate real levels at real depths; a reachability fix checked only against a hand-built cave would only show that it works on that cave.
 
 ```bash
 pnpm install --frozen-lockfile
@@ -89,19 +67,9 @@ pnpm install --frozen-lockfile
 pnpm verify
 ```
 
-That typechecks, runs the tests, and confirms the committed `plugin.js` is a current
-build of the source, and the last one matters more than it looks. An install fetches the
-committed `plugin.js` from a pinned tag and runs it as it is; nothing rebuilds it on the
-way in. So a stale artefact passes every other check and is the file players actually
-run, and `pnpm check` is the only thing that looks.
+That typechecks, runs the tests, and checks that the committed `plugin.js` is a current build of the source. The last check matters because an install fetches the committed `plugin.js` from a pinned tag and runs it as it is, with no rebuild on the way in. A stale build would pass every other check and still be the file players actually run, and `pnpm check` is the only step that catches it.
 
-No checkout of the game is needed. The engine, the content pack (Angband 4.2.6
-gamedata, which the tests generate levels from) and the plugin builder are all
-published packages, so `pnpm install --frozen-lockfile` is the whole setup and the suite proves this mod
-against exactly what a third-party author would install. A sibling checkout of
-[neo-angband](https://github.com/neostryder/neo-angband), or `NEO_ANGBAND_REPO`
-pointing at one, is an override for developing against an engine change that has not
-reached the registry yet.
+No checkout of the game is needed. The engine, the content pack (Angband 4.2.6 gamedata, which the tests generate levels from) and the plugin builder are all published packages, so `pnpm install --frozen-lockfile` is the whole setup, and the suite tests this mod against exactly what a third-party author would install. To develop against an engine change that has not reached the registry yet, use a sibling checkout of [neo-angband](https://github.com/neostryder/neo-angband) or set `NEO_ANGBAND_REPO` to point at one.
 
 ```bash
 pnpm build     # rebuild plugin.js after editing plugin.ts
@@ -109,34 +77,21 @@ pnpm build     # rebuild plugin.js after editing plugin.ts
 
 ### Testing against an unreleased engine
 
-By default the tests import the **published** engine from `node_modules` - the
-version a player runs, which is the right default and the reason the dependency
-is pinned rather than linked. When you need to run against an engine change that
-has not shipped yet:
+By default the tests import the **published** engine from `node_modules`, which is the version a player runs; that is why the dependency is pinned rather than linked. To run against an engine change that has not shipped yet:
 
 ```bash
 NEO_ANGBAND_LOCAL_CORE=1 pnpm test
 ```
 
-That resolves `@rpgm-tools/neo-angband-core` to `packages/core/dist` in the sibling
-checkout (build it first). It is a separate variable from `NEO_ANGBAND_REPO` on
-purpose: nearly everyone here has the checkout already, so keying off its presence
-would silently swap the engine under every run. If `NEO_ANGBAND_REPO` is set it is
-authoritative - a wrong path fails rather than falling back to a checkout you did
-not name.
+That resolves `@rpgm-tools/neo-angband-core` to `packages/core/dist` in the sibling checkout (build it first). It is a separate variable from `NEO_ANGBAND_REPO` because nearly everyone working here already has the checkout, so keying off its presence would silently swap the engine under every run. If `NEO_ANGBAND_REPO` is set it takes precedence, and a wrong path fails instead of falling back to a checkout you did not name.
 
 ## A note on scores
 
-A mod that changes gameplay flags the save, permanently. That is deliberate: a
-character who played with fixes should not sit in a score list beside one who did
-not.
+A mod that changes gameplay flags the save, permanently, so a character who played with fixes does not sit in a score list beside one who did not.
 
 ## Releasing
 
-A tag matching `vX.Y.Z` is the release: there is no separate publish step. A
-minor or major bump posts an announcement to the RPGM Tools Discord's Neo
-Angband announcements forum automatically, built from the matching
-[CHANGELOG.md](CHANGELOG.md) heading. A patch-only bump stays quiet by design.
+A tag matching `vX.Y.Z` is the release; there is no separate publish step. A minor or major bump automatically posts an announcement to the RPGM Tools Discord's Neo Angband announcements forum, built from the matching [CHANGELOG.md](CHANGELOG.md) heading. A patch-only bump posts nothing.
 
 ## Questions, or something wrong
 
