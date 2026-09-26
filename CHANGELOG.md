@@ -33,6 +33,7 @@ were not retagged.
 - [Visible] [Content] **Light of Varda and "blessed by the Valar" moved to Upstream Catchup.** Both are wording upstream itself corrected after 4.2.6, so they now ship under that mod's Post-4.2.6 text corrections; with only Bug Fixes enabled, the Priest spell is Light of Manwë again.
 
 - [Visible] [UI] **Setting descriptions read more plainly.** The mod and rule descriptions in the mod manager are rewritten for clarity, and the Text and history description now covers everything the switch does.
+- [Visible] [Docs] **The README's toggle table is easier to read.** The Level generation row, for example, now just says it changes the layout you walk around in and nothing else. The terms and AI usage policy are reworded too.
 
 ### Fixed
 
