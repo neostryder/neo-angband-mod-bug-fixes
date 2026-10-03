@@ -69,7 +69,7 @@ pnpm verify
 
 That typechecks, runs the tests, and checks that the committed `plugin.js` is a current build of the source. The last check matters because an install fetches the committed `plugin.js` from a pinned tag and runs it as it is, with no rebuild on the way in. A stale build would pass every other check and still be the file players actually run, and `pnpm check` is the only step that catches it.
 
-No checkout of the game is needed. The engine, the content pack (Angband 4.2.6 gamedata, which the tests generate levels from) and the plugin builder are all published packages, so `pnpm install --frozen-lockfile` is the whole setup, and the suite tests this mod against exactly what a third-party author would install. To develop against an engine change that has not reached the registry yet, use a sibling checkout of [neo-angband](https://github.com/neostryder/neo-angband) or set `NEO_ANGBAND_REPO` to point at one.
+No checkout of the game is needed. The engine, the content pack (Angband 4.2.6 gamedata, which the tests generate levels from) and the plugin builder are all published packages, so `pnpm install --frozen-lockfile` is the whole setup, and the suite tests this mod against exactly what a third-party author would install. To develop against an engine change that has not reached the registry yet, use a sibling checkout of [neo-angband](https://github.com/neostryder/neo-angband) or set `NEO_ANGBAND_REPO` to point at one. A sibling checkout alone changes nothing while the published packages are installed: `pnpm build` uses `NEO_ANGBAND_REPO` when it is set and the installed SDK otherwise, and the tests use a local engine only when asked, as the next section describes.
 
 ```bash
 pnpm build     # rebuild plugin.js after editing plugin.ts

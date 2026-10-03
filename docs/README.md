@@ -18,7 +18,7 @@ switch has no flag of its own, the game knows it by its section id instead.
 | Level generation fixes | `bugfix.levelGeneration` | on | Fixes that change the layout of a level. |
 | Text and history fixes | `bugfix.textAndHistory` | on | Corrects text the game shows you, with no change to game state. [TEXT_CHANGES.md](../TEXT_CHANGES.md) lists every change. |
 | Borg Fixes | `bugfix.borgFixes` | on | Fixes for the Borg's own bookkeeping. |
-| Fix magical armour pricing below plainer armour | `bugfix.armourValueFloor` | off | Floors an enchanted armour item's store price at the cheapest plain item of its own class that offers strictly more total AC, so enchantment can never make an item a worse buy than plainer, heavier armour on the same shelf (#179). |
+| Fix magical armour pricing below plainer armour | `bugfix.armourValueFloor` | off | Floors an enchanted armour item's store price at the cheapest plain item of its own class that offers strictly more total AC, so an enchanted item never costs less than the cheapest plainer item of its class with more total AC (#179). |
 
 ## What it needs
 
