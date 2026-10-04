@@ -47,6 +47,24 @@ function armourValueFloor(core, ctx) {
   return Math.max(baseValue, cheapestBetter);
 }
 
+// core-adapter.ts
+function createAdapter(ctx) {
+  const core = ctx.core;
+  return {
+    meta: {
+      flags: ctx.flags,
+      log: (message) => ctx.log?.(message)
+    },
+    engine: {
+      stairs: core,
+      pricing: core,
+      setValueAdjust: (host, tval, handler) => host.tval.valueAdjust.set(tval, handler),
+      stackIsFull: (obj) => obj.number === obj.kind.base.maxStack,
+      level: (gen) => gen
+    }
+  };
+}
+
 // history.ts
 function expandRawUserNote(entry, playerName) {
   if (entry.expandUserInput !== true) return entry.what;
@@ -227,7 +245,8 @@ var ARMOUR_TVALS = [
 var plugin_default = {
   api: 1,
   hooks(ctx) {
-    const { flags, core } = ctx;
+    const { meta, engine } = createAdapter(ctx);
+    const { flags } = meta;
     const hooks = {};
     if (flags["bugfix.textAndHistory"] === true) {
       hooks.historyAdd = (entry) => {
@@ -245,11 +264,11 @@ var plugin_default = {
       hooks.saveNoiseScent = () => true;
       hooks.objectListTiebreak = (a, b) => Math.sign(a.dy - b.dy) || Math.sign(a.dx - b.dx);
       hooks.artifactCommit = (_aidx, alreadyCreated) => !alreadyCreated;
-      hooks.partialStackMerge = (drained) => drained.number !== drained.kind.base.maxStack;
+      hooks.partialStackMerge = (drained) => !engine.stackIsFull(drained);
       hooks.packOverflowVictim = (_state, departedQuiver) => departedQuiver;
     }
     if (flags["bugfix.levelGeneration"] === true) {
-      hooks.levelGenerated = (gen, quest) => ensureStairsReachable(gen, quest, core);
+      hooks.levelGenerated = (gen, quest) => ensureStairsReachable(engine.level(gen), quest, engine.stairs);
     }
     return hooks;
   },
@@ -264,12 +283,12 @@ var plugin_default = {
    * host rebuilds on every toggle flip.
    */
   register(host, ctx) {
-    if (ctx.flags["bugfix.armourValueFloor"] === true) {
-      const core = ctx.core;
+    const { meta, engine } = createAdapter(ctx);
+    if (meta.flags["bugfix.armourValueFloor"] === true) {
       for (const tval of ARMOUR_TVALS) {
-        host.tval.valueAdjust.set(tval, (adjCtx) => armourValueFloor(core, adjCtx));
+        engine.setValueAdjust(host, tval, (adjCtx) => armourValueFloor(engine.pricing, adjCtx));
       }
-      ctx.log?.("bug-fixes: armour value floor installed (#179)");
+      meta.log("bug-fixes: armour value floor installed (#179)");
     }
   }
 };

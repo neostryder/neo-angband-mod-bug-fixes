@@ -29,8 +29,8 @@
  * own repository, and a module fetched from a folder cannot resolve a bare
  * specifier - nor should it, because a bundled copy of core would give the plugin
  * its own registries while the game ran on another set. src/mod-plugin.ts's header
- * has the full argument. stairs.ts is handed the slice it needs for the same
- * reason.
+ * has the full argument. core-adapter.ts is the one file that reads the context's
+ * engine members; this file and stairs.ts get what they need from it.
  *
  * Three rules make this shape work:
  *
@@ -51,23 +51,12 @@
  * no private path and no test hook.
  */
 
-import type { Gen, ModHooks } from "@rpgm-tools/neo-angband-core";
-import { armourValueFloor, type PricingCore, type ValueAdjustContext } from "./armour-value";
+import type { ModHooks } from "@rpgm-tools/neo-angband-core";
+import { armourValueFloor } from "./armour-value";
+import { createAdapter, type HookCtx, type HostLike } from "./core-adapter";
 import { expandRawUserNote } from "./history";
-import { ensureStairsReachable, type StairsCore } from "./stairs";
+import { ensureStairsReachable } from "./stairs";
 import { textAndHistoryMessage } from "./strings";
-
-/**
- * What this plugin needs from the host's context, structurally. Declared here
- * rather than imported from src/mod-plugin.ts because this file has to compile in a
- * standalone mod repository that holds no copy of the host.
- */
-interface HookCtx {
-  readonly flags: Readonly<Record<string, boolean>>;
-  readonly core: StairsCore & PricingCore;
-  /** Emit a diagnostic line; the host decides where it goes. Present on register()'s ctx. */
-  readonly log?: (msg: string) => void;
-}
 
 /**
  * The nine armour tvals (obj/object.ts's own `tvalIsArmor` list in the
@@ -89,20 +78,12 @@ const ARMOUR_TVALS = [
   18, // TV_DRAG_ARMOR
 ] as const;
 
-/** The one registry facade this toggle reaches: registry:tval's `valueAdjust` table. */
-interface HostLike {
-  readonly tval: {
-    readonly valueAdjust: {
-      set(tval: number, handler: (ctx: ValueAdjustContext) => number): void;
-    };
-  };
-}
-
 export default {
   api: 1,
 
   hooks(ctx: HookCtx): ModHooks {
-  const { flags, core } = ctx;
+  const { meta, engine } = createAdapter(ctx);
+  const { flags } = meta;
   const hooks: ModHooks = {};
 
   /*
@@ -208,7 +189,7 @@ export default {
      * main object stream.
      */
     hooks.partialStackMerge = (drained): boolean =>
-      drained.number !== drained.kind.base.maxStack;
+      !engine.stackIsFull(drained);
 
     /*
      * #4666 "Re-inscribing a quiver item with a full pack drops an unrelated
@@ -246,7 +227,7 @@ export default {
    */
   if (flags["bugfix.levelGeneration"] === true) {
     hooks.levelGenerated = (gen, quest): boolean =>
-      ensureStairsReachable(gen as Gen, quest, core);
+      ensureStairsReachable(engine.level(gen), quest, engine.stairs);
   }
 
   return hooks;
@@ -263,12 +244,12 @@ export default {
    * host rebuilds on every toggle flip.
    */
   register(host: HostLike, ctx: HookCtx): void {
-    if (ctx.flags["bugfix.armourValueFloor"] === true) {
-      const core = ctx.core;
+    const { meta, engine } = createAdapter(ctx);
+    if (meta.flags["bugfix.armourValueFloor"] === true) {
       for (const tval of ARMOUR_TVALS) {
-        host.tval.valueAdjust.set(tval, (adjCtx) => armourValueFloor(core, adjCtx));
+        engine.setValueAdjust(host, tval, (adjCtx) => armourValueFloor(engine.pricing, adjCtx));
       }
-      ctx.log?.("bug-fixes: armour value floor installed (#179)");
+      meta.log("bug-fixes: armour value floor installed (#179)");
     }
   },
 };
