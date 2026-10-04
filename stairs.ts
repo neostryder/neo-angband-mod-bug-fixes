@@ -50,28 +50,15 @@
  */
 
 import type { Chunk, Gen, Loc } from "@rpgm-tools/neo-angband-core";
+import type { StairsCore } from "./core-adapter";
 
-/**
- * The engine primitives this fix needs, HANDED IN rather than imported.
- *
- * The mod's entry point receives the live core namespace as `ctx.core` and passes
- * it down. A folder-loaded plugin.js cannot resolve "@rpgm-tools/neo-angband-core", and even
- * where it could - a bundled build - importing it would risk a second copy of the
- * engine's registries and singletons. See src/mod-plugin.ts's header.
- *
- * Declared as a Pick of core's own module type, so it can never drift from what
- * core actually exports; `typeof import(...)` is type-only syntax and leaves no
- * trace in the built plugin.js.
+/*
+ * This fix calls engine functions that it is given, never ones it imports.
+ * core-adapter.ts declares which ones and passes them in from the plugin
+ * context. A plugin.js loaded from a folder could not resolve the engine
+ * package by name in any case.
  */
-export type StairsCore = Pick<
-  typeof import("@rpgm-tools/neo-angband-core"),
-  | "FEAT"
-  | "loc"
-  | "placeStairs"
-  | "squareIsEmpty"
-  | "squareIsNoStairs"
-  | "squareNumWallsAdjacent"
->;
+export type { StairsCore };
 
 /**
  * Terrain the player can eventually get through: passable grids, plus doors
