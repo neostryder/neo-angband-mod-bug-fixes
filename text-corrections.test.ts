@@ -41,7 +41,9 @@ import { recordKey } from "@rpgm-tools/neo-angband-mod-sdk";
 
 import objectContrib from "./object.json";
 import artifactContrib from "./artifact.json";
-import manifest from "./manifest.json";
+import manifestDocument from "./manifest.json";
+
+const manifest = manifestDocument.data;
 
 const require = createRequire(import.meta.url);
 

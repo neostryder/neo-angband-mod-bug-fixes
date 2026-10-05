@@ -1,81 +1,93 @@
 {
-  "id": "bug-fixes",
-  "name": "Bug Fixes",
-  "version": "1.3.0",
-  "shape": "content",
-  "facets": [
-    "content",
-    "plugin"
-  ],
-  "modApi": 1,
-  "engine": ">=1.2.0",
-  "capabilities": [
-    "registry:tval"
-  ],
-  "dependencies": {
-    "core": "*"
-  },
-  "author": "neostryder",
-  "license": "GPL-2.0-only",
-  "description": "Opt-in fixes for bugs in Angband 4.2.6, in the style of an unofficial patch.\n\nEach kind of fix has its own toggle, so you can switch off any one of them and keep the rest. The port itself reproduces 4.2.6 faithfully, bugs included, so with this mod off none of these fixes apply.",
-  "rules": [
-    {
-      "flag": "bugfix.stateIntegrity",
-      "title": "State integrity fixes",
-      "description": "Keeps the game's own bookkeeping consistent with itself, including across a save and reload. The noise and scent heatmaps are saved, so monsters track you exactly as before after a save and reload (#4605). Items at the same distance in the floor object list keep a fixed order instead of shuffling unexpectedly (#4664). An object that already carries an artifact can no longer create that artifact a second time (#4510). A partial stack of wands or staves no longer merges when the stack being drained is already full, which stops charges drifting between the two stacks on repeated drop and pickup (#6355 residual). When a pack overflow follows an inscription change, the item dropped is the one that left your quiver, not an unrelated item (#4666).",
-      "default": true
+  "format": "neo-angband/mod/manifest",
+  "schemaVersion": 2,
+  "data": {
+    "id": "bug-fixes",
+    "name": "Bug Fixes",
+    "version": "1.3.0",
+    "api": ">=1.0.0 <2.0.0",
+    "runtime": "in-process",
+    "engine": {
+      "range": ">=1.2.0",
+      "because": "The Borg Fixes switch needs the host to pass its setting to the Borg mod."
     },
-    {
-      "flag": "bugfix.levelGeneration",
-      "title": "Level generation fixes",
-      "description": "Fixes that change the layout of a level. Vanilla level generation can seal a staircase inside a vault it never tunnelled into. Across 15,000 generated levels, 0.15% had a stranded staircase, nearly always an up stair, since a level gets only 1-2 up stairs but 3-4 down. This adds one reachable staircase to such a floor. Because it changes the layout of the levels it repairs, a character played with it on will not see the same layouts as one played without it. It has its own toggle so you can keep faithful layouts without giving up the text and bookkeeping fixes.",
-      "default": true
+    "dependencies": {
+      "required": {
+        "core": {
+          "range": "*"
+        }
+      }
     },
-    {
-      "flag": "bugfix.armourValueFloor",
-      "title": "Fix magical armour pricing below plainer armour",
-      "description": "Angband 4.2.6's store-pricing formula can price an enchanted armour item below an ordinary item of the same class that has strictly more total AC, because AC from a magical to-AC bonus is priced on a flatter scale than the item's own base AC (#179). For example, a magical Studded Leather Armour (+2 AC, 14 total AC) is priced at 266 gold, while a plain Hard Leather Armour (16 AC, no bonus) is priced at 336. This raises an enchanted item's price to at least that of the cheapest ordinary item of its own class with strictly more total AC, so an enchanted item never costs less than that plainer armour. It changes store buy and sell prices for enchanted armour, so it has its own toggle and defaults off for anyone who wants 4.2.6's store economics unchanged.",
-      "default": false,
-      "requiresReload": true
-    }
-  ],
-  "renamedRuleFlags": {
-    "bugfix.noiseScentSave": "bugfix.stateIntegrity",
-    "bugfix.objectListOrder": "bugfix.stateIntegrity",
-    "bugfix.duplicateArtifact": "bugfix.stateIntegrity",
-    "bugfix.stairsReachable": "bugfix.levelGeneration"
-  },
-  "sections": [
-    {
-      "id": "bugfix-text-and-history",
-      "flag": "bugfix.textAndHistory",
-      "title": "Text and history fixes",
-      "description": "Corrects text the game shows you, with no change to game state. Four weapon descriptions (the Two-Handed Great Flail, the Pike, the Trident 'of Wrath' and 'Mundwine') lose a two-handed rule Angband 4.2 dropped, and 40 more descriptions of monsters, items, spells and effects get their typos, grammar and wrong facts fixed; Morgoth's, for one, gives Fingolfin's wounds as eight where the game's artifact text says seven. A unique killed again through a shape-change or projection no longer logs a second 'Killed X' entry (#4245), and a player note keeps its full text beside a long character name (#6665). Four messages that put one space after a sentence instead of the usual two get the second space (\"The ground shakes! The ceiling caves in!\"), and six more get a missing full stop, capital letter or apostrophe. TEXT_CHANGES.md in this mod's repository lists every change.",
-      "default": true,
-      "renamedSectionFlags": [
-        "bugfix.textAndHistory",
-        "bugfix.uniqueKillHistory",
-        "bugfix.miscStrings",
-        "text-corrections"
-      ]
+    "capabilities": [
+      "registry:tval"
+    ],
+    "description": "Opt-in fixes for bugs in Angband 4.2.6, in the style of an unofficial patch.\n\nEach kind of fix has its own toggle, so you can switch off any one of them and keep the rest. The port itself reproduces 4.2.6 faithfully, bugs included, so with this mod off none of these fixes apply.",
+    "author": "neostryder",
+    "license": "GPL-2.0-only",
+    "repository": "https://github.com/neostryder/neo-angband-mod-bug-fixes",
+    "shape": "content",
+    "facets": [
+      "content",
+      "plugin"
+    ],
+    "compat": [
+      {
+        "with": "borg",
+        "claim": "patches",
+        "scope": [
+          "bugfix-borg-fixes"
+        ],
+        "because": "This section corrects the Borg mod's own behaviour and does nothing at all without it installed."
+      }
+    ],
+    "rules": [
+      {
+        "flag": "bugfix.stateIntegrity",
+        "title": "State integrity fixes",
+        "description": "Keeps the game's own bookkeeping consistent with itself, including across a save and reload. The noise and scent heatmaps are saved, so monsters track you exactly as before after a save and reload (#4605). Items at the same distance in the floor object list keep a fixed order instead of shuffling unexpectedly (#4664). An object that already carries an artifact can no longer create that artifact a second time (#4510). A partial stack of wands or staves no longer merges when the stack being drained is already full, which stops charges drifting between the two stacks on repeated drop and pickup (#6355 residual). When a pack overflow follows an inscription change, the item dropped is the one that left your quiver, not an unrelated item (#4666).",
+        "default": true
+      },
+      {
+        "flag": "bugfix.levelGeneration",
+        "title": "Level generation fixes",
+        "description": "Fixes that change the layout of a level. Vanilla level generation can seal a staircase inside a vault it never tunnelled into. Across 15,000 generated levels, 0.15% had a stranded staircase, nearly always an up stair, since a level gets only 1-2 up stairs but 3-4 down. This adds one reachable staircase to such a floor. Because it changes the layout of the levels it repairs, a character played with it on will not see the same layouts as one played without it. It has its own toggle so you can keep faithful layouts without giving up the text and bookkeeping fixes.",
+        "default": true
+      },
+      {
+        "flag": "bugfix.armourValueFloor",
+        "title": "Fix magical armour pricing below plainer armour",
+        "description": "Angband 4.2.6's store-pricing formula can price an enchanted armour item below an ordinary item of the same class that has strictly more total AC, because AC from a magical to-AC bonus is priced on a flatter scale than the item's own base AC (#179). For example, a magical Studded Leather Armour (+2 AC, 14 total AC) is priced at 266 gold, while a plain Hard Leather Armour (16 AC, no bonus) is priced at 336. This raises an enchanted item's price to at least that of the cheapest ordinary item of its own class with strictly more total AC, so an enchanted item never costs less than that plainer armour. It changes store buy and sell prices for enchanted armour, so it has its own toggle and defaults off for anyone who wants 4.2.6's store economics unchanged.",
+        "default": false,
+        "requiresReload": true
+      }
+    ],
+    "renamedRuleFlags": {
+      "bugfix.noiseScentSave": "bugfix.stateIntegrity",
+      "bugfix.objectListOrder": "bugfix.stateIntegrity",
+      "bugfix.duplicateArtifact": "bugfix.stateIntegrity",
+      "bugfix.stairsReachable": "bugfix.levelGeneration"
     },
-    {
-      "id": "bugfix-borg-fixes",
-      "flag": "bugfix.borgFixes",
-      "title": "Borg Fixes",
-      "description": "Fixes for the Borg's own bookkeeping. The Borg mod ports upstream Angband's autoplayer, and a defect in how it tracks its own state is fixed here like any other bug, even though the Borg lives in a different mod. The Borg tracks buffs from game messages; this checks that tracking against the character's buff timers as the engine reports them, so a missed or garbled message can no longer leave a buff marked active after it has expired.",
-      "default": true
-    }
-  ],
-  "compat": [
-    {
-      "with": "borg",
-      "claim": "patches",
-      "scope": [
-        "bugfix-borg-fixes"
-      ],
-      "because": "This section corrects the Borg mod's own behaviour and does nothing at all without it installed."
-    }
-  ],
-  "repository": "https://github.com/neostryder/neo-angband-mod-bug-fixes"
+    "sections": [
+      {
+        "id": "bugfix-text-and-history",
+        "flag": "bugfix.textAndHistory",
+        "title": "Text and history fixes",
+        "description": "Corrects text the game shows you, with no change to game state. Four weapon descriptions (the Two-Handed Great Flail, the Pike, the Trident 'of Wrath' and 'Mundwine') lose a two-handed rule Angband 4.2 dropped, and 40 more descriptions of monsters, items, spells and effects get their typos, grammar and wrong facts fixed; Morgoth's, for one, gives Fingolfin's wounds as eight where the game's artifact text says seven. A unique killed again through a shape-change or projection no longer logs a second 'Killed X' entry (#4245), and a player note keeps its full text beside a long character name (#6665). Four messages that put one space after a sentence instead of the usual two get the second space (\"The ground shakes! The ceiling caves in!\"), and six more get a missing full stop, capital letter or apostrophe. TEXT_CHANGES.md in this mod's repository lists every change.",
+        "default": true,
+        "renamedSectionFlags": [
+          "bugfix.textAndHistory",
+          "bugfix.uniqueKillHistory",
+          "bugfix.miscStrings",
+          "text-corrections"
+        ]
+      },
+      {
+        "id": "bugfix-borg-fixes",
+        "flag": "bugfix.borgFixes",
+        "title": "Borg Fixes",
+        "description": "Fixes for the Borg's own bookkeeping. The Borg mod ports upstream Angband's autoplayer, and a defect in how it tracks its own state is fixed here like any other bug, even though the Borg lives in a different mod. The Borg tracks buffs from game messages; this checks that tracking against the character's buff timers as the engine reports them, so a missed or garbled message can no longer leave a buff marked active after it has expired.",
+        "default": true
+      }
+    ]
+  }
 }

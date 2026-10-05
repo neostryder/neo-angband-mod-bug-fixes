@@ -1,4 +1,4 @@
-// bug-fixes - generated from plugin.ts by neo-angband-mod-build
+// overhaul-api2 - generated from plugin.ts by neo-angband-mod-build
 // (@rpgm-tools/neo-angband-mod-sdk). Edit the TypeScript source, not this file.
 
 // armour-value.ts
