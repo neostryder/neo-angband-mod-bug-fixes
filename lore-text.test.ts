@@ -6,7 +6,9 @@
 
 import { describe, expect, it } from "vitest";
 
-import manifest from "./manifest.json";
+import manifestDocument from "./manifest.json";
+
+const manifest = manifestDocument.data;
 
 describe("lore-text", () => {
   it("converts Text and history from a rule to a section with its legacy flags", () => {

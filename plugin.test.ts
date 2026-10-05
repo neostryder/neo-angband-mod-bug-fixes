@@ -46,7 +46,7 @@ import type {
   ObjectListEntry,
 } from "@rpgm-tools/neo-angband-core";
 import * as neoCore from "@rpgm-tools/neo-angband-core";
-import { validateManifest } from "@rpgm-tools/neo-angband-mod-sdk";
+import { matchCapability, validateManifest } from "@rpgm-tools/neo-angband-mod-sdk";
 import plugin from "./plugin";
 
 /**
@@ -138,9 +138,9 @@ const CLASS_TO_HOOKS: readonly [string, readonly string[]][] = [
 
 describe("the bug-fixes mod's entry point", () => {
   it("matches the manifest: every runtime hook class has a declared rule or section flag", () => {
-    const manifest = JSON.parse(
+    const manifest = validateManifest(JSON.parse(
       readFileSync(new URL("./manifest.json", import.meta.url), "utf8"),
-    ) as { rules: { flag: string }[]; sections: { id: string; flag?: string }[] };
+    )) as { rules: { flag: string }[]; sections: { id: string; flag?: string }[] };
     /* A content-only section needs no plugin hook, so this is deliberately
      * one-directional. Code without a declared player toggle would create a
      * change the player cannot switch off. */
@@ -191,9 +191,10 @@ describe("the six atomic flags survive the class regroup through rule and sectio
    * became a content section, so its own legacy rule and its two predecessors
    * use that section's `renamedSectionFlags` instead.
    */
-  const manifestRaw = JSON.parse(
+  const manifestDocument = JSON.parse(
     readFileSync(new URL("./manifest.json", import.meta.url), "utf8"),
-  ) as {
+  );
+  const manifestRaw = validateManifest(manifestDocument) as {
     rules: { flag: string }[];
     sections: { id: string; flag?: string; renamedSectionFlags?: string[] }[];
     renamedRuleFlags?: Record<string, string>;
@@ -237,7 +238,21 @@ describe("the six atomic flags survive the class regroup through rule and sectio
     // The actual gate the game runs at install/enable time, not a hand-rolled
     // stand-in for it - this is what would refuse a bad rename (a destination
     // that is not a current rule, a source that still is one, self-rename).
-    expect(() => validateManifest(manifestRaw)).not.toThrow();
+    expect(() => validateManifest(manifestDocument)).not.toThrow();
+  });
+
+  it("keeps schema 2 loadable on API 1 with the pricing grant", () => {
+    const manifest = validateManifest(manifestDocument, { code: ["plugin.js"] });
+    expect(Object.keys(manifestDocument)).toEqual(["format", "schemaVersion", "data"]);
+    expect(manifestDocument.schemaVersion).toBe(2);
+    expect(manifest.modApi).toBe(plugin.api);
+    expect(manifest.api).toBe(">=1.0.0 <2.0.0");
+    expect(manifest.runtime).toBe("in-process");
+    expect(manifest.entry).toBe("plugin.js");
+    expect(manifest.capabilities).toEqual(["registry:tval"]);
+    const grant = matchCapability(manifest.capabilities![0]!);
+    expect(grant?.parsed).toEqual({ kind: "registry", domain: "tval" });
+    expect(grant?.entry.tiers).toContain("first-party");
   });
 
   /**
