@@ -28,6 +28,15 @@ describe("the engine adapter boundary", () => {
     const hits = new Set<string>();
     const factories = new Set<string>();
     const adapterEngines = new Set<ts.Node>();
+    const contextAliases = new Set(["ctx"]);
+
+    const isContext = (node: ts.Expression): boolean => {
+      const expression = unwrap(node);
+      if (ts.isIdentifier(expression)) return contextAliases.has(expression.text);
+      if (ts.isPropertyAccessExpression(expression)) return expression.name.text === "ctx";
+      return ts.isElementAccessExpression(expression) && ts.isStringLiteralLike(expression.argumentExpression) &&
+        expression.argumentExpression.text === "ctx";
+    };
 
     for (const statement of tree.statements) {
       if (!ts.isImportDeclaration(statement) || !ts.isStringLiteral(statement.moduleSpecifier) ||
@@ -46,6 +55,19 @@ describe("the engine adapter boundary", () => {
     };
 
     const collect = (node: ts.Node): void => {
+      if (ts.isVariableDeclaration(node) && node.initializer) {
+        if (ts.isIdentifier(node.name) && isContext(node.initializer)) contextAliases.add(node.name.text);
+        if (ts.isObjectBindingPattern(node.name)) {
+          for (const binding of node.name.elements) {
+            if (ts.isIdentifier(binding.name) &&
+              (binding.propertyName ?? binding.name).getText(tree).replace(/["']/gu, "") === "ctx") {
+              contextAliases.add(binding.name.text);
+            }
+          }
+        }
+      }
+      if (ts.isBinaryExpression(node) && node.operatorToken.kind === ts.SyntaxKind.EqualsToken &&
+        ts.isIdentifier(node.left) && isContext(node.right)) contextAliases.add(node.left.text);
       if (ts.isVariableDeclaration(node) && node.initializer &&
         ts.isObjectBindingPattern(node.name) && fromAdapter(node.initializer)) {
         for (const binding of node.name.elements) {
@@ -56,7 +78,11 @@ describe("the engine adapter boundary", () => {
       }
       ts.forEachChild(node, collect);
     };
-    collect(tree);
+    let aliasCount: number;
+    do {
+      aliasCount = contextAliases.size;
+      collect(tree);
+    } while (contextAliases.size !== aliasCount);
 
     /** A same-named variable in another function cannot inherit the adapter's access. */
     const adapterEngine = (node: ts.Identifier): boolean => {
@@ -111,7 +137,7 @@ describe("the engine adapter boundary", () => {
           const receiver = unwrap(node.expression);
           const name = ts.isPropertyAccessExpression(node) ? node.name.text :
             ts.isStringLiteralLike(node.argumentExpression) ? node.argumentExpression.text : undefined;
-          if (ts.isIdentifier(receiver) && receiver.text === "ctx") hits.add("a raw context member");
+          if (isContext(receiver)) hits.add("a raw context member");
           if (name === "registries") hits.add("a registries read");
           if (ts.isIdentifier(receiver) && /engine$/iu.test(receiver.text) && !adapterEngine(receiver)) {
             hits.add("an engine identifier outside the adapter");
@@ -119,7 +145,7 @@ describe("the engine adapter boundary", () => {
         }
         if (ts.isVariableDeclaration(node) && node.initializer && ts.isObjectBindingPattern(node.name)) {
           const receiver = unwrap(node.initializer);
-          if (ts.isIdentifier(receiver) && receiver.text === "ctx" && node.name.elements.some((binding) =>
+          if (isContext(receiver) && node.name.elements.some((binding) =>
             CONTEXT_MEMBERS.has((binding.propertyName ?? binding.name).getText(tree).replace(/["']/gu, "")))) {
             hits.add("an engine member destructured from the context");
           }
@@ -171,12 +197,28 @@ describe("the engine adapter boundary", () => {
     ["ctx?.registries", "a raw context member"],
     ['ctx!["state"]', "a raw context member"],
     ['const { core: live } = (ctx as any);', "an engine member destructured from the context"],
+    ["const x = ctx; x.core", "a raw context member"],
+    ["let y = ctx; y.state", "a raw context member"],
+    ["const { core } = ctx;", "an engine member destructured from the context"],
+    ["const x = ctx; const y = x; y.core", "a raw context member"],
+    ["let x; x = ctx; x.core", "a raw context member"],
+    ["const x = (ctx as any); const { state } = x;", "an engine member destructured from the context"],
+    ["this.ctx.core", "a raw context member"],
+    ["obj.ctx.state", "a raw context member"],
+    ['this["ctx"]["core"]', "a raw context member"],
+    ["const { core } = this.ctx;", "an engine member destructured from the context"],
+    ["const x = obj.ctx; x.core", "a raw context member"],
+    ["const { ctx: x } = obj; x.core", "a raw context member"],
+    ["ctx[key]", "a raw context member"],
     ['import { loc as gameEngine } from "@rpgm-tools/neo-angband-core";', "a runtime engine import"],
     ['import "@rpgm-tools/neo-angband-core";', "a runtime engine import"],
     ['export { loc } from "@rpgm-tools/neo-angband-core";', "a runtime engine re-export"],
     ['export * from "@rpgm-tools/neo-angband-core";', "a runtime engine re-export"],
     ['import("@rpgm-tools/neo-angband-core")', "a runtime engine load"],
     ['require("@rpgm-tools/neo-angband-core")', "a runtime engine load"],
+    ['require("@rpgm-tools/neo-angband-core/engine")', "a runtime engine load"],
+    ['import core = require("@rpgm-tools/neo-angband-core");', "a runtime engine load"],
+    ['import engine = require("@rpgm-tools/neo-angband-core/engine");', "a runtime engine load"],
     ['type Core = typeof import("@rpgm-tools/neo-angband-core");', "an engine name list"],
     ["(gameEngine as any).loc()", "an engine identifier outside the adapter"],
     ["gameengine . loc()", "an engine identifier outside the adapter"],

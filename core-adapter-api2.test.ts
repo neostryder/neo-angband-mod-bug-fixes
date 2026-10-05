@@ -70,9 +70,11 @@ const ALL_ON = Object.freeze({
 describe("the API 2 adapter", () => {
   it.each([{}, ALL_ON, { "bugfix.textAndHistory": false }])("keeps the API 1 flags for %j", (flags) => {
     const api1 = createApi1Adapter({ flags, core: neoCore });
-    const api2 = createAdapter(fakeApi(flags, () => {}));
+    const api2Flags = { ...flags };
+    const api2 = createAdapter(fakeApi(api2Flags, () => {}));
     expect(api2.meta.flags).toEqual(api1.meta.flags);
-    expect(api2.meta.flags).toBe(flags);
+    expect(api2.meta.flags).toBe(api2Flags);
+    expect(api2.meta.flags).not.toBe(api1.meta.flags);
   });
 
   it("sends the same diagnostic messages as API 1", () => {
@@ -104,8 +106,13 @@ describe("the API 2 hook counterparts", () => {
   it.each(Array.from({ length: 16 }, (_, mask) => mask))("keeps the API 1 hook toggles for mask %i", (mask) => {
     const flags = flagsFor(mask);
     const api1 = plugin.hooks({ flags, core: neoCore });
-    const api2 = createHooks({ id: "bug-fixes", flags });
-    expect(Object.keys(api2).sort()).toEqual(Object.keys(api1).filter((name) => names.includes(name)).sort());
+    const api2 = createHooks({ id: "bug-fixes", flags: { ...flags } });
+    const expected = [
+      ...(mask & 1 ? ["historyAdd", "historyDisplay", "messageText"] : []),
+      ...(mask & 2 ? ["objectListTiebreak", "saveNoiseScent"] : []),
+    ].sort();
+    expect(Object.keys(api2).sort()).toEqual(expected);
+    expect(Object.keys(api1).filter((name) => names.includes(name)).sort()).toEqual(expected);
   });
 
   it("leaves every counterpart absent when flags are missing", () => {
@@ -113,7 +120,7 @@ describe("the API 2 hook counterparts", () => {
   });
 
   const api1 = plugin.hooks({ flags: ALL_ON, core: neoCore });
-  const api2 = createHooks({ id: "bug-fixes", flags: ALL_ON });
+  const api2 = createHooks({ id: "bug-fixes", flags: { ...ALL_ON } });
 
   it("rewrites the same messages as API 1", () => {
     for (const raw of [
