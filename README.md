@@ -34,10 +34,10 @@ flowchart TD
   R --> A["bugfix.armourValueFloor"]
   A --> AV["registry:tval<br/>setValueAdjust for each ARMOUR_TVALS entry"]
   AV --> FLOOR["armourValueFloor raises magical armour value<br/>to the cheapest better plain armour of its tval"]
-  M["manifest.json<br/>bugfix.borgFixes"] --> COMPAT["compat claims patches against borg<br/>No matching handler appears in this repository"]
+  M["manifest.json<br/>bugfix.borgFixes"] --> COMPAT["compat claims patches against borg<br/>The Borg mod reads the flag, so this mod has no handler"]
 ```
 
-*Source of truth: `plugin.ts`, `stairs.ts`, and `manifest.json`. The `bugfix.borgFixes` flag is declared, but no source handler uses it yet.*
+*Source of truth: `plugin.ts`, `stairs.ts`, and `manifest.json`. The `bugfix.borgFixes` flag is declared here, but the Borg mod reads it and applies the fix.*
 
 Each toggle covers a **class** of fixes rather than a single fix, so you can decide on each class without reading engine code. The [settings reference](SETTINGS.md) lists every flag, its default, and when a change takes effect. The diagnosis of each bug against the C source is in [BUG_FIXES.md](https://github.com/neostryder/neo-angband/blob/master/docs/modding/BUG_FIXES.md) in the main repository.
 
