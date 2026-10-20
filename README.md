@@ -19,6 +19,26 @@ When you turn a fix off, its code is absent from the game. There is no `bugfix.*
 
 ## What it fixes
 
+```mermaid
+flowchart TD
+  F["ctx.flags"] --> H["hooks runs before game start<br/>Each enabled flag contributes its own keys"]
+  H --> T["bugfix.textAndHistory"]
+  T --> TH["historyAdd refuses duplicates and keeps raw notes<br/>historyDisplay uses expandRawUserNote<br/>messageText uses textAndHistoryMessage"]
+  T --> CONTENT["The manifest gates bugfix-text-and-history"]
+  H --> S["bugfix.stateIntegrity"]
+  S --> SH["saveNoiseScent returns true<br/>objectListTiebreak sorts by top then left"]
+  S --> GUARD["artifactCommit refuses alreadyCreated<br/>partialStackMerge refuses stackIsFull<br/>packOverflowVictim returns departedQuiver"]
+  H --> L["bugfix.levelGeneration"]
+  L --> LH["levelGenerated calls ensureStairsReachable"]
+  F --> R["register runs with the live game"]
+  R --> A["bugfix.armourValueFloor"]
+  A --> AV["registry:tval<br/>setValueAdjust for each ARMOUR_TVALS entry"]
+  AV --> FLOOR["armourValueFloor raises magical armour value<br/>to the cheapest better plain armour of its tval"]
+  M["manifest.json<br/>bugfix.borgFixes"] --> COMPAT["compat claims patches against borg<br/>No matching handler appears in this repository"]
+```
+
+*Source of truth: `plugin.ts`, `stairs.ts`, and `manifest.json`. The `bugfix.borgFixes` flag is declared, but no source handler uses it yet.*
+
 Each toggle covers a **class** of fixes rather than a single fix, so you can decide on each class without reading engine code. The [settings reference](SETTINGS.md) lists every flag, its default, and when a change takes effect. The diagnosis of each bug against the C source is in [BUG_FIXES.md](https://github.com/neostryder/neo-angband/blob/master/docs/modding/BUG_FIXES.md) in the main repository.
 
 | Toggle | What it covers | What it does |
@@ -32,6 +52,33 @@ Each toggle covers a **class** of fixes rather than a single fix, so you can dec
 The first four toggles default to on **once the mod is enabled**; the mod itself starts off. The armour price floor defaults to off, because it changes store economics instead of correcting a bookkeeping or layout defect. The weapon lore text corrections come under **Text and history** instead of getting their own toggle, since that toggle only answers whether the game's text is corrected, whatever the mechanism: a runtime message patch and a gamedata content patch are the same class of fix from the player's side.
 
 ### The staircase fix uses no randomness
+
+```mermaid
+flowchart TD
+  H["bugfix.levelGeneration enables levelGenerated"] --> E["ensureStairsReachable receives gen, quest and engine.stairs"]
+  E --> P{"Does gen.playerSpot exist?"}
+  P -->|"No, a sub-chunk"| OK["The hook returns true"]
+  P -->|"Yes"| W{"Is the starting grid walkable?"}
+  W -->|"No"| FAIL["The hook returns false<br/>Core rejects and regenerates the level"]
+  W -->|"Yes"| FLOOD["walkableRegion floods passable grids,<br/>doors and rubble in eight directions"]
+  FLOOD --> DIR["The repair considers MORE then LESS"]
+  DIR --> Q{"Are there no stairs of this kind,<br/>or is at least one reachable?"}
+  Q -->|"Yes"| NEXT{"Is there another direction?"}
+  Q -->|"No"| FIND["findReachableStairSpot scans reachable legal grids<br/>It prefers 3 to 0 adjacent walls,<br/>then the shortest squared distance"]
+  FIND --> SPOT{"Did the scan find a grid?"}
+  SPOT -->|"No"| START{"Is the player grid empty and legal for stairs?"}
+  START -->|"Yes"| FALL["The repair uses the player grid"]
+  START -->|"No"| FAIL
+  SPOT -->|"Yes"| PLACE["placeStairs applies quest and depth rules"]
+  FALL --> PLACE
+  PLACE --> FEAT{"Does the grid now have the requested stair feature?"}
+  FEAT -->|"No"| FAIL
+  FEAT -->|"Yes"| NEXT
+  NEXT -->|"Yes"| DIR
+  NEXT -->|"No"| OK
+```
+
+*Source of truth: `plugin.ts` and `stairs.ts`, with the fingerprint assertions in `stairs.test.ts`.*
 
 It runs on every generated level, so if it took a single RNG draw every seed would stop
 reproducing its dungeon. It takes none. A level that already satisfies the invariant
