@@ -6,16 +6,15 @@
 
 import { describe, expect, it } from "vitest";
 import { MISC_STRING_CORRECTIONS, MISSPELLINGS, miscStringFix } from "./strings";
-import * as neoCore from "@rpgm-tools/neo-angband-core";
-import plugin from "./plugin";
+import { specHooks } from "./spec-hooks";
 import manifestDocument from "./manifest.json";
 
 const manifest = manifestDocument.data;
 
-/** The mod's behaviour as the host drives it: plugin.hooks(ctx) reduced to a
- * function of flags, with the real core namespace as ctx.core. */
+/** The mod's behaviour as the host drives it: the shipped hooks reduced to a
+ * function of flags (spec-hooks.ts). */
 const bugFixesHooks = (flags: Readonly<Record<string, boolean>>) =>
-  plugin.hooks({ flags, core: neoCore });
+  specHooks(flags);
 
 describe("the bug-fixes mod's Misc. string fixes (docs/modding/BUG_FIXES.md #14)", () => {
   it("normalizes upstream's single-spaced sentence breaks UP to its double", () => {

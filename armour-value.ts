@@ -53,7 +53,6 @@
  */
 
 import type { GameObject, ObjectKind, ObjRegistry } from "@rpgm-tools/neo-angband-core";
-import type { PricingCore } from "./core-adapter";
 
 /**
  * registry:tval's `valueAdjust` context (core's obj/tval-registry.ts
@@ -70,8 +69,8 @@ export interface ValueAdjustContext {
   readonly totalAc: number;
 }
 
-/** The one core primitive this fix calls into, never reimplements; core-adapter.ts declares and supplies it. */
-export type { PricingCore };
+/** The one core primitive this fix calls into, never reimplements. The tests supply it from the game's own package. */
+export type PricingCore = Pick<typeof import("@rpgm-tools/neo-angband-core"), "objectValueReal">;
 
 /**
  * A minimised, unenchanted GameObject of `kind`, built to price it exactly

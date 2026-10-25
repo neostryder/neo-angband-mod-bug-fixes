@@ -5,11 +5,11 @@
     "id": "bug-fixes",
     "name": "Bug Fixes",
     "version": "1.3.0",
-    "api": ">=1.0.0 <2.0.0",
+    "api": ">=2.0.0 <3.0.0",
     "runtime": "in-process",
     "engine": {
-      "range": ">=1.2.0",
-      "because": "The Borg Fixes switch needs the host to pass its setting to the Borg mod."
+      "range": ">=1.22.0",
+      "because": "The mod needs the game build that runs mod API 2 definitions from a mod folder."
     },
     "dependencies": {
       "required": {

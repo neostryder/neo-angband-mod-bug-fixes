@@ -1,69 +1,5 @@
-// overhaul-api2 - generated from plugin.ts by neo-angband-mod-build
+// bug-fixes - generated from plugin.ts by neo-angband-mod-build
 // (@rpgm-tools/neo-angband-mod-sdk). Edit the TypeScript source, not this file.
-
-// armour-value.ts
-function plainObjectOf(kind, template) {
-  const flags = template.flags.clone();
-  flags.wipe();
-  return {
-    ...template,
-    kind,
-    tval: kind.tval,
-    sval: kind.sval,
-    ac: kind.ac,
-    toA: 0,
-    toH: kind.toH.base,
-    toD: kind.toD.base,
-    weight: kind.weight,
-    dd: kind.dd,
-    ds: kind.ds,
-    pval: 0,
-    ego: null,
-    artifact: null,
-    brands: null,
-    slays: null,
-    curses: null,
-    activation: null,
-    modifiers: template.modifiers.map(() => 0),
-    flags,
-    elInfo: template.elInfo.map(() => ({ resLevel: 0, flags: 0 }))
-  };
-}
-function cheapestBetterPlainValue(core, reg, tval, qty, totalAc, template) {
-  let cheapest = null;
-  for (const kind of reg.kinds) {
-    if (kind.tval !== tval || kind.ac <= totalAc) continue;
-    const value = core.objectValueReal(reg, plainObjectOf(kind, template), qty);
-    if (cheapest === null || value < cheapest) cheapest = value;
-  }
-  return cheapest;
-}
-function armourValueFloor(core, ctx) {
-  const { reg, obj, qty, baseValue, totalAc } = ctx;
-  const magical = obj.ego !== null && obj.ego !== void 0 || obj.toA > 0;
-  if (!magical) return baseValue;
-  const cheapestBetter = cheapestBetterPlainValue(core, reg, obj.tval, qty, totalAc, obj);
-  if (cheapestBetter === null) return baseValue;
-  return Math.max(baseValue, cheapestBetter);
-}
-
-// core-adapter.ts
-function createAdapter(ctx) {
-  const core = ctx.core;
-  return {
-    meta: {
-      flags: ctx.flags,
-      log: (message) => ctx.log?.(message)
-    },
-    engine: {
-      stairs: core,
-      pricing: core,
-      setValueAdjust: (host, tval, handler) => host.tval.valueAdjust.set(tval, handler),
-      stackIsFull: (obj) => obj.number === obj.kind.base.maxStack,
-      level: (gen) => gen
-    }
-  };
-}
 
 // history.ts
 function expandRawUserNote(entry, playerName) {
@@ -71,102 +7,6 @@ function expandRawUserNote(entry, playerName) {
   if (entry.what.startsWith("/say ")) return `-- ${playerName} says: "${entry.what.slice(5)}"`;
   if (entry.what.startsWith("/me")) return `-- ${playerName}${entry.what.slice(3)}`;
   return `-- Note: ${entry.what}`;
-}
-
-// stairs.ts
-function stairWalkable(c, grid) {
-  return c.isPassable(grid) || c.isDoor(grid) || c.isRubble(grid);
-}
-function stairDirs(core) {
-  const { loc } = core;
-  return [
-    loc(0, 1),
-    loc(0, -1),
-    loc(1, 0),
-    loc(-1, 0),
-    loc(1, 1),
-    loc(-1, 1),
-    loc(1, -1),
-    loc(-1, -1)
-  ];
-}
-function walkableRegion(c, start, core) {
-  const { loc } = core;
-  const dirs = stairDirs(core);
-  const seen = new Uint8Array(c.width * c.height);
-  const stack = [start];
-  seen[start.y * c.width + start.x] = 1;
-  while (stack.length > 0) {
-    const cur = stack.pop();
-    for (const dir of dirs) {
-      const n = loc(cur.x + dir.x, cur.y + dir.y);
-      if (!c.inBounds(n)) continue;
-      const idx = n.y * c.width + n.x;
-      if (seen[idx] || !stairWalkable(c, n)) continue;
-      seen[idx] = 1;
-      stack.push(n);
-    }
-  }
-  return seen;
-}
-function findReachableStairSpot(g, seen, near, core) {
-  const { loc, squareIsEmpty, squareIsNoStairs, squareNumWallsAdjacent } = core;
-  const c = g.c;
-  const player = g.playerSpot;
-  for (let walls = 3; walls >= 0; walls--) {
-    let best = null;
-    let bestDist = Number.POSITIVE_INFINITY;
-    for (let y = 1; y <= c.height - 2; y++) {
-      for (let x = 1; x <= c.width - 2; x++) {
-        if (!seen[y * c.width + x]) continue;
-        const grid = loc(x, y);
-        if (player && grid.x === player.x && grid.y === player.y) continue;
-        if (!squareIsEmpty(g, grid)) continue;
-        if (squareIsNoStairs(c, grid)) continue;
-        if (squareNumWallsAdjacent(c, grid) !== walls) continue;
-        const dy = y - near.y;
-        const dx = x - near.x;
-        const dist = dy * dy + dx * dx;
-        if (dist < bestDist) {
-          bestDist = dist;
-          best = grid;
-        }
-      }
-    }
-    if (best) return best;
-  }
-  return null;
-}
-function ensureStairsReachable(g, quest, core) {
-  const { FEAT, loc, placeStairs, squareIsEmpty, squareIsNoStairs } = core;
-  const c = g.c;
-  const start = g.playerSpot;
-  if (!start) return true;
-  if (!stairWalkable(c, start)) return false;
-  const seen = walkableRegion(c, start, core);
-  for (const feat of [FEAT.MORE, FEAT.LESS]) {
-    let total = 0;
-    let reached = 0;
-    let stranded = null;
-    for (let y = 0; y < c.height; y++) {
-      for (let x = 0; x < c.width; x++) {
-        const grid = loc(x, y);
-        if (c.feat(grid) !== feat) continue;
-        total++;
-        if (seen[y * c.width + x]) reached++;
-        else if (!stranded) stranded = grid;
-      }
-    }
-    if (total === 0 || reached > 0) continue;
-    let spot = findReachableStairSpot(g, seen, stranded ?? start, core);
-    if (!spot && squareIsEmpty(g, start) && !squareIsNoStairs(c, start)) {
-      spot = start;
-    }
-    if (!spot) return false;
-    placeStairs(g, spot, quest, feat);
-    if (c.feat(spot) !== feat) return false;
-  }
-  return true;
 }
 
 // strings.ts
@@ -222,74 +62,59 @@ function textAndHistoryMessage(text) {
 }
 
 // plugin.ts
-var ARMOUR_TVALS = [
-  10,
-  // TV_BOOTS
-  11,
-  // TV_GLOVES
-  12,
-  // TV_HELM
-  13,
-  // TV_CROWN
-  14,
-  // TV_SHIELD
-  15,
-  // TV_CLOAK
-  16,
-  // TV_SOFT_ARMOR
-  17,
-  // TV_HARD_ARMOR
-  18
-  // TV_DRAG_ARMOR
+var ARMOUR_TVALS = [10, 11, 12, 13, 14, 15, 16, 17, 18];
+var WAITING = {
+  "bugfix.levelGeneration": ["BF-1", "staircase repair (levelGenerated)"]
+};
+var WAITING_STATE_INTEGRITY = [
+  ["BF-2", "partial-stack merge guard (partialStackMerge, #6355 residual)"],
+  ["BF-3", "pack-overflow redirect (packOverflowVictim, #4666)"],
+  ["BF-4", "duplicate-artifact guard (artifactCommit, #4510)"]
 ];
 var plugin_default = {
-  api: 1,
-  hooks(ctx) {
-    const { meta, engine } = createAdapter(ctx);
-    const { flags } = meta;
+  api: ">=2.0.0 <3.0.0",
+  hooks({ flags }) {
     const hooks = {};
     if (flags["bugfix.textAndHistory"] === true) {
       hooks.historyAdd = (entry) => {
-        if (entry.duplicate) return false;
+        if (entry.duplicate) return { keep: false };
         if (entry.rawUserInput !== void 0) {
-          entry.what = entry.rawUserInput;
-          entry.expandUserInput = true;
+          return { keep: true, what: entry.rawUserInput, expandUserInput: true };
         }
-        return true;
+        return { keep: true };
       };
       hooks.historyDisplay = expandRawUserNote;
-      hooks.messageText = (raw) => textAndHistoryMessage(raw);
+      hooks.messageText = textAndHistoryMessage;
     }
     if (flags["bugfix.stateIntegrity"] === true) {
       hooks.saveNoiseScent = () => true;
       hooks.objectListTiebreak = (a, b) => Math.sign(a.dy - b.dy) || Math.sign(a.dx - b.dx);
-      hooks.artifactCommit = (_aidx, alreadyCreated) => !alreadyCreated;
-      hooks.partialStackMerge = (drained) => !engine.stackIsFull(drained);
-      hooks.packOverflowVictim = (_state, departedQuiver) => departedQuiver;
-    }
-    if (flags["bugfix.levelGeneration"] === true) {
-      hooks.levelGenerated = (gen, quest) => ensureStairsReachable(engine.level(gen), quest, engine.stairs);
     }
     return hooks;
   },
-  /**
-   * `registry:tval`. Installs only while its own toggle is on - a disabled
-   * rule is never called at all, so the game plays core's own faithful
-   * pricing rather than a branch this mod chose to skip.
-   *
-   * `requiresReload: true` on the manifest rule is why this lives in
-   * register() rather than hooks(): `valueAdjust` is a registry a mod
-   * installs into ONCE, with the live game built, not a per-turn hook the
-   * host rebuilds on every toggle flip.
-   */
-  register(host, ctx) {
-    const { meta, engine } = createAdapter(ctx);
-    if (meta.flags["bugfix.armourValueFloor"] === true) {
-      for (const tval of ARMOUR_TVALS) {
-        engine.setValueAdjust(host, tval, (adjCtx) => armourValueFloor(engine.pricing, adjCtx));
+  policies({ flags }) {
+    if (flags["bugfix.armourValueFloor"] !== true) return void 0;
+    return {
+      valueFloor: {
+        kind: "valueFloor",
+        tvals: ARMOUR_TVALS,
+        appliesTo: "egoOrPositiveToA",
+        comparison: "cheapestPlainSameTvalWithStrictlyGreaterAc",
+        price: "objectValueReal"
       }
-      meta.log("bug-fixes: armour value floor installed (#179)");
+    };
+  },
+  start(mod) {
+    const flags = mod.meta.flags;
+    for (const [flag, [row, what]] of Object.entries(WAITING)) {
+      if (flags[flag] === true) mod.meta.log(`${what} is on, but this game cannot apply it yet (gap ${row}), so it changes nothing`);
     }
+    if (flags["bugfix.stateIntegrity"] === true) {
+      for (const [row, what] of WAITING_STATE_INTEGRITY) {
+        mod.meta.log(`${what} is on, but this game cannot apply it yet (gap ${row}), so it changes nothing`);
+      }
+    }
+    if (flags["bugfix.armourValueFloor"] === true) mod.meta.log("armour value floor declared (#179)");
   }
 };
 export {

@@ -11,245 +11,146 @@
  * long form (issue / PR / commit per entry).
  *
  * ------------------------------------------------------------------
- * ENTRY POINT CONTRACT - one shape, for every mod and every front end
+ * ENTRY POINT CONTRACT
  * ------------------------------------------------------------------
  *
- * A mod that runs code default-exports a ModPlugin (src/mod-plugin.ts):
+ * The default export is a mod API 2 definition. The mod reads no engine member:
+ * `hooks` and `policies` are handed the mod's resolved rule flags and return
+ * plain functions of plain data, or declarations the host interprets, so this
+ * file imports the SDK for TYPES ONLY. A module fetched from a folder cannot
+ * resolve a bare specifier, and a bundled copy of the SDK would only add a
+ * second copy of its module state.
  *
- *   export default { api: 1, hooks(ctx) { ... } }
+ * THE MOD READS ITS OWN FLAGS. Core never sees a flag name. A rule that is off
+ * contributes no hook and no declaration, so a switched-off fix is not merely
+ * inert, it is absent: the game takes its faithful path.
  *
- * `ctx.flags` is the host's RESOLVED per-patch choice map: every declared rule
- * flag and content-section flag in manifest.json, mapped to the value the player's
- * toggles settled on (manifest `default` unless they changed it). The host calls
- * `hooks` ONCE per enabled mod, in load order, and folds the results with
- * composeModHooks (core/mod/hooks.ts) into the single ModHooks core holds.
- *
- * `ctx.core` is the ENGINE, handed in, and this file imports @rpgm-tools/neo-angband-core for
- * TYPES ONLY. The same source is built to the `plugin.js` that ships in this mod's
- * own repository, and a module fetched from a folder cannot resolve a bare
- * specifier - nor should it, because a bundled copy of core would give the plugin
- * its own registries while the game ran on another set. src/mod-plugin.ts's header
- * has the full argument. core-adapter.ts is the one file that reads the context's
- * engine members; this file and stairs.ts get what they need from it.
- *
- * Three rules make this shape work:
- *
- *  1. THE MOD READS ITS OWN FLAGS. Core never sees a flag name. A hook is
- *     installed only if the patch that needs it is on, so a patch the player
- *     switched off is not merely inert - its hook is ABSENT, and core takes the
- *     faithful path with one undefined check.
- *  2. NEVER RETURN A FUNCTION THAT SELF-DISABLES. `historyAdd: (e) => flags.x ?
- *     !e.duplicate : true` would be wrong even though it behaves the same: an
- *     installed hook is a promise to core that something wants that point, and
- *     under composeModHooks a hook that is present but opinionless still runs
- *     (and, for the first-handler hooks, can shadow another mod's).
- *  3. A DISABLED MOD IS NEVER CALLED AT ALL. The host does not invoke this
- *     function for a mod the player has not enabled, so returning `{}` here
- *     means "enabled, but every patch off".
- *
- * The mod uses core's public API - the same API a third-party mod has. It touches
- * no private path and no test hook.
+ * FOUR FIXES WAIT ON THE GAME. The staircase repair, the partial-stack merge
+ * guard, the pack-overflow redirect and the duplicate-artifact guard each need
+ * a hook or declaration that the game's mod API 2 does not yet have (gap
+ * register rows BF-1 to BF-4). Their working code stays in stairs.ts and the
+ * notes below, with its tests, as the specification the game's additions must
+ * match. Until the game provides them, `start` says in the log that the fix is
+ * on and does nothing, so a toggle that is on never fails silently.
  */
 
-import type { ModHooks } from "@rpgm-tools/neo-angband-core";
-import { armourValueFloor } from "./armour-value";
-import { createAdapter, type HookCtx, type HostLike } from "./core-adapter";
+import type { Api2HookContext, Api2Hooks, Api2ModDefinition, Api2Policies, ModApi2 } from "@rpgm-tools/neo-angband-mod-sdk";
 import { expandRawUserNote } from "./history";
-import { ensureStairsReachable } from "./stairs";
 import { textAndHistoryMessage } from "./strings";
 
 /**
- * The nine armour tvals (obj/object.ts's own `tvalIsArmor` list in the
- * game's repository, reference/src/list-tvals.h order), spelled out as
- * literal numbers because plugin.ts may import @rpgm-tools/neo-angband-core
- * for TYPES only - a bare `TV.SOFT_ARMOR` value import would either fail
- * the build or ship a private inlined copy of the engine (see this file's
- * header). Keep this list in step with tvalIsArmor by hand.
+ * The nine armour tvals (reference/src/list-tvals.h order, the game's own
+ * `tvalIsArmor` list), spelled out as literal numbers because this file
+ * imports types only.
  */
-const ARMOUR_TVALS = [
-  10, // TV_BOOTS
-  11, // TV_GLOVES
-  12, // TV_HELM
-  13, // TV_CROWN
-  14, // TV_SHIELD
-  15, // TV_CLOAK
-  16, // TV_SOFT_ARMOR
-  17, // TV_HARD_ARMOR
-  18, // TV_DRAG_ARMOR
-] as const;
+const ARMOUR_TVALS = [10, 11, 12, 13, 14, 15, 16, 17, 18] as const;
+
+/** The fixes this game's mod API 2 cannot carry yet, each with the register row that asks for it. */
+const WAITING: Readonly<Record<string, readonly [row: string, what: string]>> = {
+  "bugfix.levelGeneration": ["BF-1", "staircase repair (levelGenerated)"],
+};
+
+/** The parts of `bugfix.stateIntegrity` that wait, logged once when that flag is on. */
+const WAITING_STATE_INTEGRITY: readonly (readonly [row: string, what: string])[] = [
+  ["BF-2", "partial-stack merge guard (partialStackMerge, #6355 residual)"],
+  ["BF-3", "pack-overflow redirect (packOverflowVictim, #4666)"],
+  ["BF-4", "duplicate-artifact guard (artifactCommit, #4510)"],
+];
 
 export default {
-  api: 1,
+  api: ">=2.0.0 <3.0.0",
 
-  hooks(ctx: HookCtx): ModHooks {
-  const { meta, engine } = createAdapter(ctx);
-  const { flags } = meta;
-  const hooks: ModHooks = {};
-
-  /*
-   * bugfix.textAndHistory - what the game WRITES DOWN or SAYS. No game state.
-   * Folds #4245 (unique kill history) and the misc. string table; the same flag
-   * also gates its lore-text content patches.
-   */
-  if (flags["bugfix.textAndHistory"] === true) {
-    /*
-     * #4245 "Killing a unique twice logs it twice". A unique reached again through
-     * a shape-change or projection death path logs a second "Killed X" entry.
-     * Faithful core logs every entry it reaches, duplicates included; core reports
-     * whether THIS entry is a duplicate and holds no opinion about it.
-     *
-     * #6665 retains an unexpanded note in the same writable request.  The raw
-     * text is at most the command's input limit, so history's 79-character
-     * storage cannot cut off a long player name, the note's tail, or its quote.
-     */
-    hooks.historyAdd = (entry): boolean => {
-      if (entry.duplicate) return false;
-      if (entry.rawUserInput !== undefined) {
-        entry.what = entry.rawUserInput;
-        entry.expandUserInput = true;
-      }
-      return true;
-    };
-
-    /* The matching display half of #6665.  Screens calls this same hook for the
-     * live history page and the character dump, so a raw entry has one expansion
-     * rule everywhere a player can read it. */
-    hooks.historyDisplay = expandRawUserNote;
+  hooks({ flags }: Api2HookContext): Api2Hooks {
+    const hooks: Api2Hooks = {};
 
     /*
-     * Misc. string fixes: upstream's own cosmetic string warts, corrected at the
-     * host's single message sink so every msg()/msgt() in core and the shell is
-     * covered by one rule. Identity for anything not in the table (strings.ts), and
-     * an exact-match table on purpose - messages arrive interpolated, so a general
-     * rewrite would edit inscriptions and names the player typed.
+     * bugfix.textAndHistory - what the game WRITES DOWN or SAYS. No game state.
+     * Folds #4245 (unique kill history), #6665 (user notes) and the misc.
+     * string table; the same flag also gates its lore-text content patches.
      */
-    hooks.messageText = (raw): string => textAndHistoryMessage(raw);
-  }
+    if (flags["bugfix.textAndHistory"] === true) {
+      /*
+       * #4245 "Killing a unique twice logs it twice". Core reports whether THIS
+       * entry is a duplicate and holds no opinion about it; dropping it is the fix.
+       *
+       * #6665 retains an unexpanded note in the same decision. The raw text is at
+       * most the command's input limit, so history's 79-character storage cannot
+       * cut off a long player name, the note's tail, or its quote.
+       */
+      hooks.historyAdd = (entry) => {
+        if (entry.duplicate) return { keep: false };
+        if (entry.rawUserInput !== undefined) {
+          return { keep: true, what: entry.rawUserInput, expandUserInput: true };
+        }
+        return { keep: true };
+      };
 
-  /*
-   * bugfix.stateIntegrity - the game's own bookkeeping staying consistent with
-   * itself, including across a save and reload. Folds #4605, #4664, #4510, and
-   * (new) the #6355 residual stack-charge drift and #4666 pack-overflow mis-fire.
-   */
-  if (flags["bugfix.stateIntegrity"] === true) {
-    /*
-     * #4605 "Noise and scent are not saved". The heatmaps are transient upstream,
-     * so monsters track the player differently after a save/reload than they would
-     * have without one. Asking for them in the save is the whole fix - core does
-     * the writing and the reading either way.
-     */
-    hooks.saveNoiseScent = (): boolean => true;
+      /* The display half of #6665: one expansion rule for the live history page and the character dump. */
+      hooks.historyDisplay = expandRawUserNote;
 
-    /*
-     * #4664 "Object list is not always correctly ordered". Upstream's compare_items
-     * (obj-util.c) is not a strict weak order for qsort, so the list can come out
-     * unstable. The port's comparator IS a lexicographic strict weak order feeding
-     * a STABLE Array.sort, so ties keep collect order - but two distinct entries at
-     * equal distance are still formally equivalent. This adds a deterministic
-     * geometric total key (nearer-to-top first, then leftmost), making the order a
-     * strict TOTAL order that holds even under a non-stable sort. PR #4668 was
-     * closed unmerged, so there is no accepted upstream fix to port instead.
-     *
-     * Total order, so it is a legal comparator: antisymmetric by construction
-     * (Math.sign of a difference) and transitive (lexicographic on dy then dx).
-     */
-    hooks.objectListTiebreak = (a, b): number =>
-      Math.sign(a.dy - b.dy) || Math.sign(a.dx - b.dx);
-
-    /*
-     * #4510 "Duplicate artifacts". The shared ArtifactState already makes
-     * duplication impossible by construction for freshly-selected artifacts (the
-     * selection loop skips any created one). This closes the remaining window: an
-     * object handed to make_artifact that ALREADY carries an artifact skips that
-     * scan, so committing it again would copy the artifact data and re-mark it
-     * created a second time. Refusing makes ArtifactState the single source of
-     * truth. Faithful 4.2.6 commits it.
-     *
-     * RNG-FREE, as the hook requires: a pure read of the created flag core passes
-     * in. Core refuses BEFORE copy_artifact_data draws, so the veto changes the
-     * outcome without half-drawing.
-     */
-    hooks.artifactCommit = (_aidx, alreadyCreated): boolean => !alreadyCreated;
-
-    /*
-     * #6355 residual "Charges drift between wand/staff stacks on repeated drop
-     * and pickup" (neostryder/neo-angband#115). combinePack's uneven-stack merge
-     * (object_absorb_partial's non-quiver branch) swaps the two stacks' counts
-     * whenever the destination is not already at its per-stack limit, and
-     * distribute_charges then truncates a charge fraction on every swap -
-     * repeated drop/pickup drifts charges in one direction. Contributor
-     * draconisPW proposed this exact guard upstream on 2025-10-08 and it was
-     * never submitted: refuse the merge when the SOURCE stack (`drained`) is
-     * itself already at its per-stack limit, which draconisPW's own draft tests
-     * as `obj2->number == obj2->kind->base->max_stack`. The existing
-     * destination guard (`obj1->number == obj1->kind->base->max_stack`,
-     * inven_can_stack_partial) is unrelated and already faithful in core.
-     *
-     * RNG-FREE, as the hook requires: a pure read of two counts, drawn on the
-     * main object stream.
-     */
-    hooks.partialStackMerge = (drained): boolean =>
-      !engine.stackIsFull(drained);
-
-    /*
-     * #4666 "Re-inscribing a quiver item with a full pack drops an unrelated
-     * item for free" (neostryder/neo-angband#116). packOverflow's NULL-victim
-     * path faithfully sheds the trailing gear.inven[] entry, which need not be
-     * the item that actually caused the overflow - a note-only change (an
-     * inscription) can drop an item's preferred_quiver_slot match and displace
-     * it out of the quiver, turning a slot-weighted quiver stack into a full
-     * pack slot of its own, and the trailing entry can be something else
-     * entirely (a chest, reproduced in the issue). Core already computes which
-     * single handle just left the quiver and hands it over as
-     * `departedQuiver`; the whole fix is accepting that redirect. Declining
-     * (returning it unchanged, including the null case) falls back to core's
-     * faithful selection, so an ordinary overflow from picking something up -
-     * where nothing left the quiver - is untouched.
-     *
-     * RNG-FREE, as the hook requires: no computation at all, let alone a draw.
-     */
-    hooks.packOverflowVictim = (_state, departedQuiver): number | null => departedQuiver;
-  }
-
-  /*
-   * bugfix.levelGeneration - anything that changes the LAYOUT a player walks
-   * around in. Kept separate so a player who wants faithful layout is not forced
-   * to also give up the cosmetic / bookkeeping fixes.
-   *
-   * "Always a reachable up and down staircase" - upstream can seal a staircase
-   * inside a vault it never tunnelled into (measured 0.15% of floors, usually the
-   * up stair). See stairs.ts for the defect, the measurement, and why this is a
-   * mod rather than a port fix.
-   *
-   * RNG-FREE, as the hook requires, which is what makes it safe to run on every
-   * level: a floor that needed no repair is bit-identical to one generated with
-   * no mod at all. Returning false rejects the level and cave_generate re-rolls.
-   */
-  if (flags["bugfix.levelGeneration"] === true) {
-    hooks.levelGenerated = (gen, quest): boolean =>
-      ensureStairsReachable(engine.level(gen), quest, engine.stairs);
-  }
-
-  return hooks;
-  },
-
-  /**
-   * `registry:tval`. Installs only while its own toggle is on - a disabled
-   * rule is never called at all, so the game plays core's own faithful
-   * pricing rather than a branch this mod chose to skip.
-   *
-   * `requiresReload: true` on the manifest rule is why this lives in
-   * register() rather than hooks(): `valueAdjust` is a registry a mod
-   * installs into ONCE, with the live game built, not a per-turn hook the
-   * host rebuilds on every toggle flip.
-   */
-  register(host: HostLike, ctx: HookCtx): void {
-    const { meta, engine } = createAdapter(ctx);
-    if (meta.flags["bugfix.armourValueFloor"] === true) {
-      for (const tval of ARMOUR_TVALS) {
-        engine.setValueAdjust(host, tval, (adjCtx) => armourValueFloor(engine.pricing, adjCtx));
-      }
-      meta.log("bug-fixes: armour value floor installed (#179)");
+      /*
+       * Misc. string fixes: upstream's own cosmetic string warts, corrected at
+       * the host's single message sink. An exact-match table on purpose
+       * (strings.ts): messages arrive interpolated, so a general rewrite would
+       * edit inscriptions and names the player typed.
+       */
+      hooks.messageText = textAndHistoryMessage;
     }
+
+    /*
+     * bugfix.stateIntegrity - the game's own bookkeeping staying consistent with
+     * itself, including across a save and reload.
+     */
+    if (flags["bugfix.stateIntegrity"] === true) {
+      /*
+       * #4605 "Noise and scent are not saved". The heatmaps are transient
+       * upstream, so monsters track the player differently after a save/reload.
+       * Asking for them in the save is the whole fix.
+       */
+      hooks.saveNoiseScent = (): boolean => true;
+
+      /*
+       * #4664 "Object list is not always correctly ordered". Adds a deterministic
+       * geometric total key (nearer-to-top first, then leftmost), so the order is
+       * a strict TOTAL order that holds even under a non-stable sort. PR #4668
+       * was closed unmerged, so there is no accepted upstream fix to port.
+       */
+      hooks.objectListTiebreak = (a, b): number => Math.sign(a.dy - b.dy) || Math.sign(a.dx - b.dx);
+    }
+
+    return hooks;
   },
-};
+
+  policies({ flags }: Api2HookContext): Api2Policies | undefined {
+    /*
+     * bugfix.armourValueFloor (#179): an enchanted armour item is never priced
+     * below the cheapest ordinary item of its own class with strictly more
+     * total AC. The host runs the comparison with the game's own pricing, which
+     * is what armour-value.ts specifies. `requiresReload` on the manifest rule
+     * is why the declaration is read once at load.
+     */
+    if (flags["bugfix.armourValueFloor"] !== true) return undefined;
+    return {
+      valueFloor: {
+        kind: "valueFloor",
+        tvals: ARMOUR_TVALS,
+        appliesTo: "egoOrPositiveToA",
+        comparison: "cheapestPlainSameTvalWithStrictlyGreaterAc",
+        price: "objectValueReal",
+      },
+    };
+  },
+
+  start(mod: ModApi2): void {
+    const flags = mod.meta.flags;
+    for (const [flag, [row, what]] of Object.entries(WAITING)) {
+      if (flags[flag] === true) mod.meta.log(`${what} is on, but this game cannot apply it yet (gap ${row}), so it changes nothing`);
+    }
+    if (flags["bugfix.stateIntegrity"] === true) {
+      for (const [row, what] of WAITING_STATE_INTEGRITY) {
+        mod.meta.log(`${what} is on, but this game cannot apply it yet (gap ${row}), so it changes nothing`);
+      }
+    }
+    if (flags["bugfix.armourValueFloor"] === true) mod.meta.log("armour value floor declared (#179)");
+  },
+} satisfies Api2ModDefinition;
