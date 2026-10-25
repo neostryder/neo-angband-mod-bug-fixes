@@ -50,15 +50,17 @@
  */
 
 import type { Chunk, Gen, Loc } from "@rpgm-tools/neo-angband-core";
-import type { StairsCore } from "./core-adapter";
 
 /*
- * This fix calls engine functions that it is given, never ones it imports.
- * core-adapter.ts declares which ones and passes them in from the plugin
- * context. A plugin.js loaded from a folder could not resolve the engine
- * package by name in any case.
+ * This fix calls engine functions that it is given, never ones it imports. A
+ * plugin.js loaded from a folder could not resolve the engine package by name
+ * in any case. This is the specification of what the game's level-generation
+ * declaration (gap register row BF-1) must be able to do.
  */
-export type { StairsCore };
+export type StairsCore = Pick<
+  typeof import("@rpgm-tools/neo-angband-core"),
+  "FEAT" | "loc" | "placeStairs" | "squareIsEmpty" | "squareIsNoStairs" | "squareNumWallsAdjacent"
+>;
 
 /**
  * Terrain the player can eventually get through: passable grids, plus doors

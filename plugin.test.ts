@@ -1,12 +1,14 @@
 /**
- * The `bug-fixes` mod's entry point, and the four patches whose whole body is a
+ * The `bug-fixes` mod's API 2 entry point, and the patches whose whole body is a
  * hook (the staircase repair has its own file, stairs.test.ts; the string table
  * has strings.test.ts).
  *
- * Every test drives the mod the way the game does: call the default export with
- * resolved flags, install the result as GameState.modHooks / MakeDeps.hooks, and
- * assert the game's behaviour. The matching SEAM tests in core assert the other
- * half - that core offers each point, and what it does with an absent hook.
+ * The first describe blocks check what the mod really contributes to the game's
+ * mod API 2. The later ones drive a real game with the fix's decision, through
+ * spec-hooks.ts: the shipped hooks adapted to core's hook shape, plus the
+ * specification code of the four fixes that wait on the game (register rows
+ * BF-1 to BF-4). Those tests stay green so the specification cannot drift
+ * before the game's additions arrive.
  */
 
 import { readFileSync } from "node:fs";
@@ -46,18 +48,25 @@ import type {
   ObjectListEntry,
 } from "@rpgm-tools/neo-angband-core";
 import * as neoCore from "@rpgm-tools/neo-angband-core";
-import { matchCapability, validateManifest } from "@rpgm-tools/neo-angband-mod-sdk";
+import { apiRangeVerdict, checkApi2Policies, matchCapability, validateManifest } from "@rpgm-tools/neo-angband-mod-sdk";
+import type { Api2Hooks, ModApi2 } from "@rpgm-tools/neo-angband-mod-sdk";
+import { armourValueFloor } from "./armour-value";
 import plugin from "./plugin";
+import { specHooks } from "./spec-hooks";
 
-/**
- * The mod's behaviour, driven the way the HOST drives it: the entry point is a
- * ModPlugin whose `hooks` reads the engine off `ctx.core`
- * (mods/bug-fixes/plugin.ts), and the host reduces that to a function of flags
- * (src/mod-hooks.ts pluginAdapter). Same reduction here, with the real core.
- */
-const bugFixesHooks = (
-  flags: Readonly<Record<string, boolean>>,
-): ModHooks => plugin.hooks({ flags, core: neoCore });
+/** The core hooks a real game runs for these flags (see spec-hooks.ts). */
+const bugFixesHooks = (flags: Readonly<Record<string, boolean>>): ModHooks => specHooks(flags);
+
+/** What the mod contributes to the game's mod API 2 for these flags. */
+const api2Hooks = (flags: Readonly<Record<string, boolean>>): Api2Hooks =>
+  plugin.hooks({ id: "bug-fixes", flags }) ?? {};
+
+function startWith(flags: Readonly<Record<string, boolean>>): string[] {
+  const lines: string[] = [];
+  const mod = { meta: { flags, log: (line: string) => lines.push(line) } } as unknown as ModApi2;
+  plugin.start(mod);
+  return lines;
+}
 
 /* ------------------------------------------------------------------ *
  * Content.
@@ -118,22 +127,15 @@ const ALL_ON: Readonly<Record<string, boolean>> = {
 };
 
 /**
- * One player-facing class toggle -> the hooks that class installs.
- * One toggle per CLASS of fix, never one per atomic fix.
+ * One player-facing class toggle -> the API 2 hooks that class installs.
+ * One toggle per CLASS of fix, never one per atomic fix. `levelGeneration`
+ * installs none: its fix waits on the game (BF-1), as do three parts of
+ * `stateIntegrity` (BF-2 to BF-4).
  */
 const CLASS_TO_HOOKS: readonly [string, readonly string[]][] = [
   ["bugfix.textAndHistory", ["historyAdd", "historyDisplay", "messageText"]],
-  [
-    "bugfix.stateIntegrity",
-    [
-      "saveNoiseScent",
-      "objectListTiebreak",
-      "artifactCommit",
-      "partialStackMerge",
-      "packOverflowVictim",
-    ],
-  ],
-  ["bugfix.levelGeneration", ["levelGenerated"]],
+  ["bugfix.stateIntegrity", ["saveNoiseScent", "objectListTiebreak"]],
+  ["bugfix.levelGeneration", []],
 ];
 
 describe("the bug-fixes mod's entry point", () => {
@@ -154,17 +156,22 @@ describe("the bug-fixes mod's entry point", () => {
     );
   });
 
+  it("declares a range this game runs", () => {
+    expect(apiRangeVerdict(plugin.api)).toEqual({ ok: true });
+  });
+
   it("contributes nothing when the mod is enabled but every class is off", () => {
-    expect(bugFixesHooks({})).toEqual({});
+    expect(api2Hooks({})).toEqual({});
     const allOff = Object.fromEntries(
       CLASS_TO_HOOKS.map(([flag]) => [flag, false]),
     );
-    expect(bugFixesHooks(allOff)).toEqual({});
+    expect(api2Hooks(allOff)).toEqual({});
+    expect(plugin.policies({ id: "bug-fixes", flags: allOff })).toBeUndefined();
   });
 
   it("installs exactly the hooks each class needs, and no other", () => {
     for (const [flag, classHooks] of CLASS_TO_HOOKS) {
-      const hooks = bugFixesHooks({ [flag]: true });
+      const hooks = api2Hooks({ [flag]: true });
       expect(Object.keys(hooks).sort(), `${flag} alone`).toEqual(
         [...classHooks].sort(),
       );
@@ -173,15 +180,36 @@ describe("the bug-fixes mod's entry point", () => {
 
   it("installs every hook with the whole patch set on", () => {
     const allHooks = CLASS_TO_HOOKS.flatMap(([, hs]) => hs).sort();
-    expect(Object.keys(bugFixesHooks(ALL_ON)).sort()).toEqual(allHooks);
+    expect(Object.keys(api2Hooks(ALL_ON)).sort()).toEqual(allHooks);
+  });
+
+  it("adds the specification code of the waiting fixes to the shared set the game suites drive", () => {
+    expect(Object.keys(bugFixesHooks(ALL_ON)).sort()).toEqual(
+      [
+        ...CLASS_TO_HOOKS.flatMap(([, hs]) => hs),
+        "artifactCommit",
+        "levelGenerated",
+        "packOverflowVictim",
+        "partialStackMerge",
+      ].sort(),
+    );
+  });
+
+  it("says in the log which waiting fixes are on, and only those", () => {
+    expect(startWith({})).toEqual([]);
+    expect(startWith({ "bugfix.textAndHistory": true })).toEqual([]);
+    const lines = startWith({ "bugfix.levelGeneration": true, "bugfix.stateIntegrity": true });
+    expect(lines).toHaveLength(4);
+    for (const [i, row] of ["BF-1", "BF-2", "BF-3", "BF-4"].entries()) expect(lines[i]).toContain(row);
+    expect(startWith({ "bugfix.armourValueFloor": true })).toHaveLength(1);
   });
 });
 
 describe("the six atomic flags survive the class regroup through rule and section renames", () => {
   /*
    * This mod has never written a save-file bag (nothing on
-   * `ctx.state.mods["bug-fixes"]` - `register()` now exists, for #179's
-   * `registry:tval` install below, but it touches no save state), so it has
+   * `ctx.state.mods["bug-fixes"]` - the armour floor is a declared policy and
+   * touches no save state), so it has
    * no business owning a `saveSchema` / `migrateBag` migration - that seam
    * is for a mod's own PERSISTED GAME STATE, and this mod persists none.
    * What actually needed to survive the six-flags-to-three regroup is
@@ -241,12 +269,12 @@ describe("the six atomic flags survive the class regroup through rule and sectio
     expect(() => validateManifest(manifestDocument)).not.toThrow();
   });
 
-  it("keeps schema 2 loadable on API 1 with the pricing grant", () => {
+  it("is a schema 2 manifest on API 2 with the pricing grant", () => {
     const manifest = validateManifest(manifestDocument, { code: ["plugin.js"] });
     expect(Object.keys(manifestDocument)).toEqual(["format", "schemaVersion", "data"]);
     expect(manifestDocument.schemaVersion).toBe(2);
-    expect(manifest.modApi).toBe(plugin.api);
-    expect(manifest.api).toBe(">=1.0.0 <2.0.0");
+    expect(manifest.api).toBe(plugin.api);
+    expect(manifest.api).toBe(">=2.0.0 <3.0.0");
     expect(manifest.runtime).toBe("in-process");
     expect(manifest.entry).toBe("plugin.js");
     expect(manifest.capabilities).toEqual(["registry:tval"]);
@@ -651,83 +679,42 @@ describe("#4666: packOverflowVictim redirects to the item that left the quiver (
 });
 
 /**
- * bugfix.armourValueFloor (#179) - register()'s WIRING, driven the way the
- * host drives it: a fake host captures whatever plugin.register() installs
- * onto it, so this proves ONLY that the toggle installs the right handler
- * for the right tvals, and nothing when it is off. What the installed
- * handler actually computes is armour-value.test.ts's job, against the real
- * published engine and content pack - the same split feature-restoration's
- * plugin.test.ts uses for its own registry:store discount-roll install.
+ * bugfix.armourValueFloor (#179): the mod declares a `valueFloor` policy and the
+ * game prices with its own formula. What the floor computes, against the real
+ * published engine and content pack, is armour-value.test.ts's job; this block
+ * proves the declaration names exactly the nine armour tvals the specification
+ * covers, only while the flag is on, and that the specification gives the
+ * reported case's price.
  */
-describe("register() - bugfix.armourValueFloor (#179)", () => {
-  /** The nine armour tvals this toggle installs its handler under (obj/object.ts's own tvalIsArmor list). */
-  const ARMOUR_TVALS = [10, 11, 12, 13, 14, 15, 16, 17, 18];
-
-  function fakeHost() {
-    const installed = new Map<number, unknown>();
-    return {
-      host: {
-        tval: {
-          valueAdjust: {
-            set(tval: number, handler: unknown) {
-              installed.set(tval, handler);
-            },
-          },
-        },
-      },
-      installed,
-    };
-  }
-
-  it("installs nothing when the flag is absent or off", () => {
-    const { host, installed } = fakeHost();
-    plugin.register(host, { flags: {}, core: neoCore });
-    expect(installed.size).toBe(0);
-
-    plugin.register(host, { flags: { "bugfix.armourValueFloor": false }, core: neoCore });
-    expect(installed.size).toBe(0);
+describe("valueFloor declaration - bugfix.armourValueFloor (#179)", () => {
+  it("declares nothing while the flag is absent or off", () => {
+    expect(plugin.policies({ id: "bug-fixes", flags: {} })).toBeUndefined();
+    expect(plugin.policies({ id: "bug-fixes", flags: { "bugfix.armourValueFloor": false } })).toBeUndefined();
   });
 
-  it("installs a handler for exactly the nine armour tvals when the flag is on", () => {
-    const { host, installed } = fakeHost();
-    plugin.register(host, { flags: { "bugfix.armourValueFloor": true }, core: neoCore });
-
-    expect([...installed.keys()].sort((a, b) => a - b)).toEqual(ARMOUR_TVALS);
-    for (const tval of ARMOUR_TVALS) {
-      expect(installed.get(tval)).toBeTypeOf("function");
-    }
+  it("declares the nine armour tvals in list-tvals.h order, and the host accepts the declaration", () => {
+    const policies = plugin.policies({ id: "bug-fixes", flags: { "bugfix.armourValueFloor": true } });
+    expect(Object.keys(policies ?? {})).toEqual(["valueFloor"]);
+    expect(checkApi2Policies(policies ?? {})).toBeNull();
+    expect(policies?.valueFloor).toMatchObject({
+      kind: "valueFloor",
+      tvals: [10, 11, 12, 13, 14, 15, 16, 17, 18],
+      appliesTo: "egoOrPositiveToA",
+      comparison: "cheapestPlainSameTvalWithStrictlyGreaterAc",
+      price: "objectValueReal",
+    });
   });
 
-  it("the installed handler is armourValueFloor, driven end to end against a fake registry:tval call", () => {
-    // A magical Studded Leather Armour (+2 AC, 14 total), constructed the
-    // same way armour-value.test.ts's reported-case test does - proving the
-    // handler register() actually installs is the real fix, not a stand-in.
-    const objPack = {
-      objectBase: loadJson("object_base"),
-      object: loadJson("object"),
-      egoItem: loadJson("ego_item"),
-      artifact: loadJson("artifact"),
-      curse: loadJson("curse"),
-      brand: loadJson("brand"),
-      slay: loadJson("slay"),
-      activation: loadJson("activation"),
-      objectProperty: loadJson("object_property"),
-      flavor: loadJson("flavor"),
-    };
+  it("the specification prices the reported case: a magical Studded Leather Armour rises from 266 to 336", () => {
     const reg = new ObjRegistry(objPack as unknown as ConstructorParameters<typeof ObjRegistry>[0]);
     const constants = bindConstants(loadJson("constants"));
     const kind = reg.kinds.find((k) => k.name === "Studded Leather Armour~")!;
     const studded = objectPrep(new Rng(1), reg, constants, kind, 0, "minimise");
     studded.toA = 2;
-
-    const { host, installed } = fakeHost();
-    plugin.register(host, { flags: { "bugfix.armourValueFloor": true }, core: neoCore });
-    const handler = installed.get(neoCore.TV.SOFT_ARMOR) as (ctx: unknown) => number;
-
     const baseValue = neoCore.objectValueReal(reg, studded, 1);
     expect(baseValue).toBe(266);
     expect(
-      handler({ reg, obj: studded, qty: 1, baseValue, totalAc: studded.ac + studded.toA }),
+      armourValueFloor(neoCore, { reg, obj: studded, qty: 1, baseValue, totalAc: studded.ac + studded.toA }),
     ).toBe(336);
   });
 });

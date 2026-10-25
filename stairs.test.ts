@@ -60,7 +60,7 @@ import type {
   MonPlaceDeps,
 } from "@rpgm-tools/neo-angband-core";
 import * as neoCore from "@rpgm-tools/neo-angband-core";
-import plugin from "./plugin";
+import { specHooks } from "./spec-hooks";
 
 /**
  * The mod's behaviour, driven the way the HOST drives it: the entry point is a
@@ -69,7 +69,7 @@ import plugin from "./plugin";
  * (src/mod-hooks.ts pluginAdapter). Same reduction here, with the real core.
  */
 const bugFixesHooks = (flags: Readonly<Record<string, boolean>>): ModHooks =>
-  plugin.hooks({ flags, core: neoCore });
+  specHooks(flags);
 import { ensureStairsReachable as repairStairs } from "./stairs";
 
 /** The repair with the engine handed in, as the plugin hands it. */
