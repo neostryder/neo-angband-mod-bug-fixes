@@ -25,18 +25,21 @@
  * contributes no hook and no declaration, so a switched-off fix is not merely
  * inert, it is absent: the game takes its faithful path.
  *
- * FOUR FIXES WAIT ON THE GAME. The staircase repair, the partial-stack merge
- * guard, the pack-overflow redirect and the duplicate-artifact guard each need
- * a hook or declaration that the game's mod API 2 does not yet have (gap
- * register rows BF-1 to BF-4). Their working code stays in stairs.ts and the
- * notes below, with its tests, as the specification the game's additions must
- * match. Until the game provides them, `start` says in the log that the fix is
- * on and does nothing, so a toggle that is on never fails silently.
+ * FOUR FIXES USE THE GAME'S OWN HOOKS. The staircase repair, the partial-stack
+ * merge guard, the pack-overflow redirect and the duplicate-artifact guard
+ * stand at points where the game hands over live objects, so API 2 has no hook
+ * for them. `engineHooks` returns the game's own members by name and the game
+ * calls them with the live arguments. That door opens only for a mod with the
+ * engine domain, and the mod still reads no engine member of its own: the
+ * engine arrives as an argument. The decisions are plain functions in
+ * stairs.ts and state-rules.ts.
  */
 
-import type { Api2HookContext, Api2Hooks, Api2ModDefinition, Api2Policies, ModApi2 } from "@rpgm-tools/neo-angband-mod-sdk";
+import type { Api2Engine, Api2HookContext, Api2Hooks, Api2ModDefinition, Api2Policies, ModApi2 } from "@rpgm-tools/neo-angband-mod-sdk";
 import { expandRawUserNote } from "./history";
+import { ensureStairsReachable, type StairsCore } from "./stairs";
 import { textAndHistoryMessage } from "./strings";
+import { allowArtifactCommit, allowPartialStackMerge, packOverflowVictim } from "./state-rules";
 
 /**
  * The nine armour tvals (reference/src/list-tvals.h order, the game's own
@@ -44,18 +47,6 @@ import { textAndHistoryMessage } from "./strings";
  * imports types only.
  */
 const ARMOUR_TVALS = [10, 11, 12, 13, 14, 15, 16, 17, 18] as const;
-
-/** The fixes this game's mod API 2 cannot carry yet, each with the register row that asks for it. */
-const WAITING: Readonly<Record<string, readonly [row: string, what: string]>> = {
-  "bugfix.levelGeneration": ["BF-1", "staircase repair (levelGenerated)"],
-};
-
-/** The parts of `bugfix.stateIntegrity` that wait, logged once when that flag is on. */
-const WAITING_STATE_INTEGRITY: readonly (readonly [row: string, what: string])[] = [
-  ["BF-2", "partial-stack merge guard (partialStackMerge, #6355 residual)"],
-  ["BF-3", "pack-overflow redirect (packOverflowVictim, #4666)"],
-  ["BF-4", "duplicate-artifact guard (artifactCommit, #4510)"],
-];
 
 export default {
   api: ">=2.0.0 <3.0.0",
@@ -141,16 +132,33 @@ export default {
     };
   },
 
-  start(mod: ModApi2): void {
-    const flags = mod.meta.flags;
-    for (const [flag, [row, what]] of Object.entries(WAITING)) {
-      if (flags[flag] === true) mod.meta.log(`${what} is on, but this game cannot apply it yet (gap ${row}), so it changes nothing`);
+  /*
+   * The hooks API 2 has no form for: the game's own members, called with live
+   * arguments. Each one is declared only while its flag is on.
+   */
+  engineHooks({ flags, engine }: Api2HookContext & { readonly engine: Api2Engine }): Readonly<Record<string, (...args: never[]) => unknown>> {
+    const hooks: Record<string, (...args: never[]) => unknown> = {};
+
+    /*
+     * bugfix.levelGeneration - "always a reachable up and down staircase". The
+     * hook receives the whole generated level and returns false to make the game
+     * generate another; stairs.ts holds the repair and its long account.
+     */
+    if (flags["bugfix.levelGeneration"] === true) {
+      hooks["levelGenerated"] = (gen: Parameters<typeof ensureStairsReachable>[0], quest: boolean): boolean => ensureStairsReachable(gen, quest, engine.core as StairsCore);
     }
+
+    /* bugfix.stateIntegrity - the three guards that need the game's live state. */
     if (flags["bugfix.stateIntegrity"] === true) {
-      for (const [row, what] of WAITING_STATE_INTEGRITY) {
-        mod.meta.log(`${what} is on, but this game cannot apply it yet (gap ${row}), so it changes nothing`);
-      }
+      hooks["artifactCommit"] = (_aidx: number, alreadyCreated: boolean): boolean => allowArtifactCommit(alreadyCreated);
+      hooks["partialStackMerge"] = (drained: Parameters<typeof allowPartialStackMerge>[0]): boolean => allowPartialStackMerge(drained);
+      hooks["packOverflowVictim"] = (_state: unknown, departedQuiver: number | null): number | null => packOverflowVictim(departedQuiver);
     }
-    if (flags["bugfix.armourValueFloor"] === true) mod.meta.log("armour value floor declared (#179)");
+
+    return hooks;
+  },
+
+  start(mod: ModApi2): void {
+    if (mod.meta.flags["bugfix.armourValueFloor"] === true) mod.meta.log("armour value floor declared (#179)");
   },
 } satisfies Api2ModDefinition;

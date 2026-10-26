@@ -54,8 +54,7 @@ import type { Chunk, Gen, Loc } from "@rpgm-tools/neo-angband-core";
 /*
  * This fix calls engine functions that it is given, never ones it imports. A
  * plugin.js loaded from a folder could not resolve the engine package by name
- * in any case. This is the specification of what the game's level-generation
- * declaration (gap register row BF-1) must be able to do.
+ * in any case. The mod's `engineHooks` hands it the engine the game gave it.
  */
 export type StairsCore = Pick<
   typeof import("@rpgm-tools/neo-angband-core"),

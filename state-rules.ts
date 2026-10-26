@@ -1,12 +1,10 @@
 /**
- * The decisions of the three bookkeeping fixes that wait on the game's mod API 2
- * (gap register rows BF-2, BF-3 and BF-4).
+ * The decisions of the three bookkeeping fixes in `bugfix.stateIntegrity` that
+ * work through the game's own hook members: the partial-stack merge guard, the
+ * pack-overflow redirect and the duplicate-artifact guard.
  *
- * Each is a pure function of the plain facts the game would hand over, with no
- * engine read and no random draw. The mod does not install them: API 2 has no
- * hook for the point where they apply. They stay here with their tests as the
- * specification the game's additions must match, and plugin.ts logs that the
- * fix is on and waiting.
+ * Each is a pure function of the plain facts the game hands over, with no
+ * engine read and no random draw. plugin.ts returns them from `engineHooks`.
  */
 
 /** The part of a stack the merge guard reads. */
