@@ -6,9 +6,7 @@
  * The first describe blocks check what the mod really contributes to the game's
  * mod API 2. The later ones drive a real game with the fix's decision, through
  * spec-hooks.ts: the shipped hooks adapted to core's hook shape, plus the
- * specification code of the four fixes that wait on the game (register rows
- * BF-1 to BF-4). Those tests stay green so the specification cannot drift
- * before the game's additions arrive.
+ * game's own hook members the mod returns from `engineHooks`.
  */
 
 import { readFileSync } from "node:fs";
@@ -60,6 +58,10 @@ const bugFixesHooks = (flags: Readonly<Record<string, boolean>>): ModHooks => sp
 /** What the mod contributes to the game's mod API 2 for these flags. */
 const api2Hooks = (flags: Readonly<Record<string, boolean>>): Api2Hooks =>
   plugin.hooks({ id: "bug-fixes", flags }) ?? {};
+
+/** The game's own hook members the mod returns, given its flags and an engine. */
+const engineHooksFor = (flags: Readonly<Record<string, boolean>>): Record<string, unknown> =>
+  (plugin.engineHooks?.({ id: "bug-fixes", flags, engine: { api: "1", core: neoCore, state: undefined, registries: undefined, registry: undefined } }) ?? {}) as Record<string, unknown>;
 
 function startWith(flags: Readonly<Record<string, boolean>>): string[] {
   const lines: string[] = [];
@@ -129,8 +131,8 @@ const ALL_ON: Readonly<Record<string, boolean>> = {
 /**
  * One player-facing class toggle -> the API 2 hooks that class installs.
  * One toggle per CLASS of fix, never one per atomic fix. `levelGeneration`
- * installs none: its fix waits on the game (BF-1), as do three parts of
- * `stateIntegrity` (BF-2 to BF-4).
+ * installs none through `hooks`: its fix is an `engineHooks` member
+ * (`levelGenerated`), as are three parts of `stateIntegrity`.
  */
 const CLASS_TO_HOOKS: readonly [string, readonly string[]][] = [
   ["bugfix.textAndHistory", ["historyAdd", "historyDisplay", "messageText"]],
@@ -183,7 +185,14 @@ describe("the bug-fixes mod's entry point", () => {
     expect(Object.keys(api2Hooks(ALL_ON)).sort()).toEqual(allHooks);
   });
 
-  it("adds the specification code of the waiting fixes to the shared set the game suites drive", () => {
+  it("returns the game's own hook members from engineHooks, one set per class, and none when off", () => {
+    expect(engineHooksFor({})).toEqual({});
+    expect(engineHooksFor({ "bugfix.textAndHistory": true })).toEqual({});
+    expect(Object.keys(engineHooksFor({ "bugfix.levelGeneration": true }))).toEqual(["levelGenerated"]);
+    expect(Object.keys(engineHooksFor({ "bugfix.stateIntegrity": true })).sort()).toEqual(["artifactCommit", "packOverflowVictim", "partialStackMerge"]);
+  });
+
+  it("adds those members to the shared set the game suites drive", () => {
     expect(Object.keys(bugFixesHooks(ALL_ON)).sort()).toEqual(
       [
         ...CLASS_TO_HOOKS.flatMap(([, hs]) => hs),
@@ -195,12 +204,15 @@ describe("the bug-fixes mod's entry point", () => {
     );
   });
 
-  it("says in the log which waiting fixes are on, and only those", () => {
+  it("names no hook that has an API 2 form, which the game refuses", () => {
+    const api2 = new Set(Object.keys(api2Hooks(ALL_ON)));
+    for (const name of Object.keys(engineHooksFor(ALL_ON))) expect(api2.has(name), name).toBe(false);
+  });
+
+  it("logs only the armour floor at start, and only when it is on", () => {
     expect(startWith({})).toEqual([]);
     expect(startWith({ "bugfix.textAndHistory": true })).toEqual([]);
-    const lines = startWith({ "bugfix.levelGeneration": true, "bugfix.stateIntegrity": true });
-    expect(lines).toHaveLength(4);
-    for (const [i, row] of ["BF-1", "BF-2", "BF-3", "BF-4"].entries()) expect(lines[i]).toContain(row);
+    expect(startWith({ "bugfix.levelGeneration": true, "bugfix.stateIntegrity": true })).toEqual([]);
     expect(startWith({ "bugfix.armourValueFloor": true })).toHaveLength(1);
   });
 });

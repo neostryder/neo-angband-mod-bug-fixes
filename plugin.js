@@ -9,6 +9,102 @@ function expandRawUserNote(entry, playerName) {
   return `-- Note: ${entry.what}`;
 }
 
+// stairs.ts
+function stairWalkable(c, grid) {
+  return c.isPassable(grid) || c.isDoor(grid) || c.isRubble(grid);
+}
+function stairDirs(core) {
+  const { loc } = core;
+  return [
+    loc(0, 1),
+    loc(0, -1),
+    loc(1, 0),
+    loc(-1, 0),
+    loc(1, 1),
+    loc(-1, 1),
+    loc(1, -1),
+    loc(-1, -1)
+  ];
+}
+function walkableRegion(c, start, core) {
+  const { loc } = core;
+  const dirs = stairDirs(core);
+  const seen = new Uint8Array(c.width * c.height);
+  const stack = [start];
+  seen[start.y * c.width + start.x] = 1;
+  while (stack.length > 0) {
+    const cur = stack.pop();
+    for (const dir of dirs) {
+      const n = loc(cur.x + dir.x, cur.y + dir.y);
+      if (!c.inBounds(n)) continue;
+      const idx = n.y * c.width + n.x;
+      if (seen[idx] || !stairWalkable(c, n)) continue;
+      seen[idx] = 1;
+      stack.push(n);
+    }
+  }
+  return seen;
+}
+function findReachableStairSpot(g, seen, near, core) {
+  const { loc, squareIsEmpty, squareIsNoStairs, squareNumWallsAdjacent } = core;
+  const c = g.c;
+  const player = g.playerSpot;
+  for (let walls = 3; walls >= 0; walls--) {
+    let best = null;
+    let bestDist = Number.POSITIVE_INFINITY;
+    for (let y = 1; y <= c.height - 2; y++) {
+      for (let x = 1; x <= c.width - 2; x++) {
+        if (!seen[y * c.width + x]) continue;
+        const grid = loc(x, y);
+        if (player && grid.x === player.x && grid.y === player.y) continue;
+        if (!squareIsEmpty(g, grid)) continue;
+        if (squareIsNoStairs(c, grid)) continue;
+        if (squareNumWallsAdjacent(c, grid) !== walls) continue;
+        const dy = y - near.y;
+        const dx = x - near.x;
+        const dist = dy * dy + dx * dx;
+        if (dist < bestDist) {
+          bestDist = dist;
+          best = grid;
+        }
+      }
+    }
+    if (best) return best;
+  }
+  return null;
+}
+function ensureStairsReachable(g, quest, core) {
+  const { FEAT, loc, placeStairs, squareIsEmpty, squareIsNoStairs } = core;
+  const c = g.c;
+  const start = g.playerSpot;
+  if (!start) return true;
+  if (!stairWalkable(c, start)) return false;
+  const seen = walkableRegion(c, start, core);
+  for (const feat of [FEAT.MORE, FEAT.LESS]) {
+    let total = 0;
+    let reached = 0;
+    let stranded = null;
+    for (let y = 0; y < c.height; y++) {
+      for (let x = 0; x < c.width; x++) {
+        const grid = loc(x, y);
+        if (c.feat(grid) !== feat) continue;
+        total++;
+        if (seen[y * c.width + x]) reached++;
+        else if (!stranded) stranded = grid;
+      }
+    }
+    if (total === 0 || reached > 0) continue;
+    let spot = findReachableStairSpot(g, seen, stranded ?? start, core);
+    if (!spot && squareIsEmpty(g, start) && !squareIsNoStairs(c, start)) {
+      spot = start;
+    }
+    if (!spot) return false;
+    placeStairs(g, spot, quest, feat);
+    if (c.feat(spot) !== feat) return false;
+  }
+  return true;
+}
+
 // strings.ts
 var MISC_STRING_CORRECTIONS = {
   /* effects.c, effect_do(): its sibling messages ("Bad effect description
@@ -61,16 +157,19 @@ function textAndHistoryMessage(text) {
   return spaced;
 }
 
+// state-rules.ts
+function allowPartialStackMerge(drained) {
+  return drained.number !== drained.kind.base.maxStack;
+}
+function packOverflowVictim(departedQuiver) {
+  return departedQuiver;
+}
+function allowArtifactCommit(alreadyCreated) {
+  return !alreadyCreated;
+}
+
 // plugin.ts
 var ARMOUR_TVALS = [10, 11, 12, 13, 14, 15, 16, 17, 18];
-var WAITING = {
-  "bugfix.levelGeneration": ["BF-1", "staircase repair (levelGenerated)"]
-};
-var WAITING_STATE_INTEGRITY = [
-  ["BF-2", "partial-stack merge guard (partialStackMerge, #6355 residual)"],
-  ["BF-3", "pack-overflow redirect (packOverflowVictim, #4666)"],
-  ["BF-4", "duplicate-artifact guard (artifactCommit, #4510)"]
-];
 var plugin_default = {
   api: ">=2.0.0 <3.0.0",
   hooks({ flags }) {
@@ -104,17 +203,24 @@ var plugin_default = {
       }
     };
   },
-  start(mod) {
-    const flags = mod.meta.flags;
-    for (const [flag, [row, what]] of Object.entries(WAITING)) {
-      if (flags[flag] === true) mod.meta.log(`${what} is on, but this game cannot apply it yet (gap ${row}), so it changes nothing`);
+  /*
+   * The hooks API 2 has no form for: the game's own members, called with live
+   * arguments. Each one is declared only while its flag is on.
+   */
+  engineHooks({ flags, engine }) {
+    const hooks = {};
+    if (flags["bugfix.levelGeneration"] === true) {
+      hooks["levelGenerated"] = (gen, quest) => ensureStairsReachable(gen, quest, engine.core);
     }
     if (flags["bugfix.stateIntegrity"] === true) {
-      for (const [row, what] of WAITING_STATE_INTEGRITY) {
-        mod.meta.log(`${what} is on, but this game cannot apply it yet (gap ${row}), so it changes nothing`);
-      }
+      hooks["artifactCommit"] = (_aidx, alreadyCreated) => allowArtifactCommit(alreadyCreated);
+      hooks["partialStackMerge"] = (drained) => allowPartialStackMerge(drained);
+      hooks["packOverflowVictim"] = (_state, departedQuiver) => packOverflowVictim(departedQuiver);
     }
-    if (flags["bugfix.armourValueFloor"] === true) mod.meta.log("armour value floor declared (#179)");
+    return hooks;
+  },
+  start(mod) {
+    if (mod.meta.flags["bugfix.armourValueFloor"] === true) mod.meta.log("armour value floor declared (#179)");
   }
 };
 export {

@@ -20,6 +20,10 @@ were not retagged.
 
 ## [Unreleased]
 
+### Changed
+
+- [Visible] [Modding-API] **Runs on mod API 2 and needs engine 1.22.0 or newer.** The staircase repair and three of the state integrity guards now run through the game's own hook members. Every fix does what it did before.
+
 ### Removed
 
 - [Internal] **Removed this repo's own Discord release announcer.** Its workflow, script and test are gone. The releases site at releases.rpgm.tools now posts each new release to the Neo Angband announcements forum.
