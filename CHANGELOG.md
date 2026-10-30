@@ -20,6 +20,8 @@ were not retagged.
 
 ## [Unreleased]
 
+## 1.4.0-beta.1 - 2026-10-30
+
 ### Changed
 
 - [Visible] [Modding-API] **Runs on mod API 2 and needs engine 1.22.0 or newer.** The staircase repair and three of the state integrity guards now run through the game's own hook members. Every fix does what it did before.
