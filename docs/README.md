@@ -22,7 +22,7 @@ switch has no flag of its own, the game knows it by its section id instead.
 
 ## What it needs
 
-- **Engine:** `>=1.22.0`
+- **Engine:** `>=1.23.0-beta.1`
 - **Shape:** `content`
 - **Facets:** `content`, `plugin`
 - **Capabilities:** `registry:tval` - only while "Fix magical armour pricing below plainer armour" is on, to install its store-value adjustment.
