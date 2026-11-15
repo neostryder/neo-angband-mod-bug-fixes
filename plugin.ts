@@ -14,7 +14,8 @@
  * ENTRY POINT CONTRACT
  * ------------------------------------------------------------------
  *
- * The default export is a mod API 2 definition. The mod reads no engine member:
+ * The default export is a mod API 2 definition. The rest wrapper installed
+ * in start() is the only part that uses the engine domain. The
  * `hooks` and `policies` are handed the mod's resolved rule flags and return
  * plain functions of plain data, or declarations the host interprets, so this
  * file imports the SDK for TYPES ONLY. A module fetched from a folder cannot
@@ -36,6 +37,7 @@
  */
 
 import type { Api2Engine, Api2HookContext, Api2Hooks, Api2ModDefinition, Api2Policies, ModApi2 } from "@rpgm-tools/neo-angband-mod-sdk";
+import type { ModRegistryHost } from "@rpgm-tools/neo-angband-core";
 import { expandRawUserNote } from "./history";
 import { ensureStairsReachable, type StairsCore } from "./stairs";
 import { textAndHistoryMessage } from "./strings";
@@ -159,6 +161,19 @@ export default {
   },
 
   start(mod: ModApi2): void {
+    if (mod.meta.flags["bugfix.stateIntegrity"] === true && mod.engine?.registry) {
+      const core = mod.engine.core as typeof import("@rpgm-tools/neo-angband-core");
+      const registry = mod.engine.registry as ModRegistryHost;
+      registry.commands.register("rest", (state, cmd) => {
+        const first = state.cmdQueue?.length ?? 0;
+        const energy = core.restAction(state, cmd);
+        /* Upstream 727138d71 keeps internal continuations out of repeat memory. */
+        for (const next of state.cmdQueue?.slice(first) ?? []) {
+          if (next.code === "rest") next.background = 1;
+        }
+        return energy;
+      });
+    }
     if (mod.meta.flags["bugfix.armourValueFloor"] === true) mod.meta.log("armour value floor declared (#179)");
   },
 } satisfies Api2ModDefinition;

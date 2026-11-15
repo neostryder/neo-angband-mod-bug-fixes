@@ -20,8 +20,13 @@ were not retagged.
 
 ## [Unreleased]
 
+### Changed
+
+- [Visible] **State integrity fixes now needs a reload when switched on or off.** It wraps the rest action when the game starts, so it is the one Rules toggle that no longer applies at once.
+
 ### Fixed
 
+- [Internal] [Modding-API] **Commands that continue a rest are now marked as background commands (upstream 727138d71).** The marker sits under State integrity fixes and leaves rest length, energy use, completion, interruption, and random rolls unchanged. The current web client ignores the marker and keeps its own repeat memory, so pressing n after a rest still repeats the wrong command there.
 - [Visible] [Compatibility] **"Level generation fixes" and "State integrity fixes" work again.** Since the mod moved to mod API 2, both groups did nothing even with their toggles on: a staircase stranded inside an unreachable vault stayed there, and the artifact creation, partial stack merge, and quiver overflow guards were skipped. The mod now requests the `engine:access` capability these fixes need to reach the game's own hooks, and a test fails if that request is ever removed.
 
 ## 1.4.0-beta.2 - 2026-10-30
