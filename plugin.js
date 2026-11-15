@@ -193,6 +193,8 @@ var plugin_default = {
   },
   policies({ flags }) {
     const policies = {
+      /* Upstream 27a260501 forbids new up stairs under forced descent. */
+      ...flags["bugfix.levelGeneration"] === true ? { forcedDescentStairs: true } : {},
       /* Upstream 41319eef9 waits out amnesia and scrambled stats as well. */
       ...flags["bugfix.stateIntegrity"] === true ? {
         completeRestEffects: [

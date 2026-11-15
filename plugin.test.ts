@@ -326,10 +326,11 @@ describe("the bug-fixes mod's entry point", () => {
   it("The policy tables retain every enabled class when the flags are combined", () => {
     const state = plugin.policies({ id: "bug-fixes", flags: { "bugfix.stateIntegrity": true } });
     const combat = plugin.policies({ id: "bug-fixes", flags: { "bugfix.combatFixes": true } });
+    const level = plugin.policies({ id: "bug-fixes", flags: { "bugfix.levelGeneration": true } });
     const armour = plugin.policies({ id: "bug-fixes", flags: { "bugfix.armourValueFloor": true } });
     const combined = plugin.policies({ id: "bug-fixes", flags: { ...ALL_ON, "bugfix.armourValueFloor": true } });
-    expect(combined).toEqual({ ...state, ...combat, ...armour });
-    expect(Object.keys(combined!)).toHaveLength(8);
+    expect(combined).toEqual({ ...state, ...combat, ...level, ...armour });
+    expect(Object.keys(combined!)).toHaveLength(9);
     expect(checkApi2Policies(combined)).toBeNull();
   });
 
@@ -470,7 +471,7 @@ describe("the six atomic flags survive the class regroup through rule and sectio
     expect(manifest.api).toBe(">=2.3.0 <3.0.0");
     expect(manifest.runtime).toBe("in-process");
     expect(manifest.entry).toBe("plugin.js");
-    expect(manifest.capabilities).toEqual(["engine:access", "registry:command", "registry:effect-info", "registry:monster", "registry:projection", "registry:tval"]);
+    expect(manifest.capabilities).toEqual(["engine:access", "registry:command", "registry:effect-info", "registry:monster", "registry:projection", "registry:room", "registry:tval"]);
     const grant = matchCapability("registry:tval");
     expect(grant?.parsed).toEqual({ kind: "registry", domain: "tval" });
     expect(grant?.entry.tiers).toContain("first-party");
@@ -1039,6 +1040,152 @@ describe("FORCE blast center - bugfix.combatFixes (#6747)", () => {
     expect(draw.mock.calls).toEqual(enabled ? [[8], [8]] : [[8]]);
     expect(neoCore.locEq(state.actor.grid, target)).toBe(false);
     draw.mockRestore();
+  });
+});
+
+describe("27a260501: forced-descent stairs - bugfix.levelGeneration (#6700)", () => {
+  function hooksFor(flags: Readonly<Record<string, boolean>>): ModHooks {
+    const policy = policyRegistrations(flags).forcedDescentStairs;
+    return { ...bugFixesHooks(flags), ...(policy ? { forcedDescentStairs: () => policy } : {}) };
+  }
+
+  it.each([
+    [{}, false],
+    [{ "bugfix.levelGeneration": false }, false],
+    [{ "bugfix.combatFixes": true }, false],
+    [{ "bugfix.stateIntegrity": true }, false],
+    [{ "bugfix.levelGeneration": true }, true],
+  ] as const)("requests room access only for Level generation fixes: %j", (flags, enabled) => {
+    const policies = plugin.policies({ id: "bug-fixes", flags }) ?? {};
+    const grant = vi.fn((_capability: string) => true);
+    const effects = api2PolicyEffects(policies, grant);
+    expect(grant.mock.calls.some(([capability]) => capability === "registry:room")).toBe(enabled);
+    expect(effects.registrations.forcedDescentStairs).toBe(enabled ? true : undefined);
+    expect(policyRegistrations(flags).forcedDescentStairs).toBe(enabled ? true : undefined);
+    expect(api2PolicyEffects(policies, (capability) => capability !== "registry:room").registrations.forcedDescentStairs).toBeUndefined();
+  });
+
+  function generate(flags: Readonly<Record<string, boolean>>, forceDescend: boolean, options: neoCore.GenerateOptions = {}) {
+    const { registries: reg } = policyArena(6700).booted;
+    return neoCore.generateLevel(new Rng(6700), 30, {
+      reg: reg.features, constants: reg.constants, rooms: reg.rooms, profiles: reg.profiles,
+      objDeps: null, monDeps: null, hooks: hooksFor(flags),
+    }, { profileName: "classic", forceDescend, ...options });
+  }
+
+  function stairs(g: neoCore.Gen, feat: number) {
+    return g.joins.filter((join) => join.feat === feat);
+  }
+
+  function fingerprint(g: neoCore.Gen) {
+    const terrain = [];
+    for (let y = 0; y < g.c.height; y++) {
+      for (let x = 0; x < g.c.width; x++) {
+        const grid = { x, y };
+        terrain.push([g.c.feat(grid), Array.from(g.c.info(grid).bits)]);
+      }
+    }
+    return { terrain, spot: g.playerSpot, joins: g.joins, rng: g.rng.getState() };
+  }
+
+  it.each(["classic", "cavern", "labyrinth"])("suppresses new up stairs in the %s profile only while on", (profileName) => {
+    for (const enabled of [false, true]) {
+      const g = generate({ "bugfix.levelGeneration": enabled }, true, { profileName });
+      if (enabled) expect(stairs(g, neoCore.FEAT.LESS)).toHaveLength(0);
+      else expect(stairs(g, neoCore.FEAT.LESS).length).toBeGreaterThan(0);
+      expect(stairs(g, neoCore.FEAT.MORE).length).toBeGreaterThan(0);
+      expect(g.dun.forcedDescent).toBe(enabled);
+    }
+  });
+
+  it("preserves terrain, connectors, and RNG with the toggle off", () => {
+    expect(fingerprint(generate({ "bugfix.levelGeneration": false }, true))).toEqual(fingerprint(generate({}, true)));
+  });
+
+  it.each([false, true])("reads the forced-descent birth option during game startup with the toggle %s", (enabled) => {
+    const game = startGame(pack, {
+      seed: 6700, depth: 30, generate: { profileName: "classic" },
+      optionOverrides: { birth_force_descend: true },
+      modHooks: hooksFor({ "bugfix.levelGeneration": enabled }),
+    });
+    const up = game.booted.joins.filter((join) => join.feat === neoCore.FEAT.LESS);
+    if (enabled) expect(up).toHaveLength(0);
+    else expect(up.length).toBeGreaterThan(0);
+  });
+
+  it("preserves terrain, connectors, and RNG when forced descent is off", () => {
+    expect(fingerprint(generate({ "bugfix.levelGeneration": true }, false))).toEqual(fingerprint(generate({}, false)));
+  });
+
+  it("keeps the seeded reciprocal up connector without adding another", () => {
+    const connector = { grid: { x: 20, y: 20 }, feat: neoCore.FEAT.LESS };
+    const g = generate({ "bugfix.levelGeneration": true }, true, {
+      persist: true, hasAdjacentAbove: true,
+      joinInfo: { join: [connector], oneOffAbove: [], oneOffBelow: [] },
+    });
+    expect(stairs(g, neoCore.FEAT.LESS).map(({ grid, feat }) => ({ grid, feat }))).toEqual([connector]);
+    expect(g.c.feat(connector.grid)).toBe(neoCore.FEAT.LESS);
+  });
+
+  it("keeps the seeded arrival stair without adding other up stairs", () => {
+    const g = generate({ "bugfix.levelGeneration": true }, true, { createStair: "up" });
+    expect(g.c.feat(g.playerSpot!)).toBe(neoCore.FEAT.LESS);
+    expect(stairs(g, neoCore.FEAT.LESS)).toHaveLength(1);
+  });
+
+  it.each(["town", "ordinary", "quest", "bottom"])("selects allowed random stairs on a %s level", (level) => {
+    for (const enabled of [false, true]) {
+      const game = policyArena(6700);
+      const reg = game.booted.registries;
+      const dun = new neoCore.Dun(reg.constants);
+      dun.forcedDescent = hooksFor({ "bugfix.levelGeneration": enabled }).forcedDescentStairs?.() ?? false;
+      const g = new neoCore.Gen(new neoCore.Chunk(reg.features, 9, 9), new Rng(1), reg.features, reg.constants, dun, null, null);
+      g.c.depth = level === "town" ? 0 : level === "bottom" ? reg.constants.maxDepth - 1 : 30;
+      const grid = { x: 4, y: 4 };
+      g.c.setFeat(grid, neoCore.FEAT.FLOOR);
+      neoCore.placeRandomStairs(g, grid, level === "quest");
+      const blocked = level === "quest" || level === "bottom";
+      expect(g.c.feat(grid)).toBe(enabled ? (blocked ? neoCore.FEAT.FLOOR : neoCore.FEAT.MORE) : (blocked ? neoCore.FEAT.LESS : neoCore.FEAT.MORE));
+    }
+  });
+
+  it.each(["ordinary", "quest", "bottom", "option off"])("applies CREATE_STAIRS on a %s level before moving objects", (level) => {
+    const outcomes = [];
+    for (const enabled of [false, true]) {
+      const game = policyArena(6700);
+      const { state } = game;
+      state.options = new neoCore.OptionState({ overrides: { birth_force_descend: level !== "option off" } });
+      state.modHooks = hooksFor({ "bugfix.levelGeneration": enabled });
+      if (level === "bottom") state.chunk.depth = state.z.maxDepth - 1;
+      const grid = { ...state.actor.grid };
+      const reg = game.booted.registries.objects;
+      const kind = reg.kinds.find((k) => k.tval === neoCore.TV.ARROW)!;
+      const obj = objectPrep(new Rng(1), reg, game.booted.registries.constants, kind, 0, "minimise");
+      expect(neoCore.floorCarry(state, grid, obj)).toBe(true);
+      const messages: string[] = [];
+      const ident = { value: false };
+      const before = state.rng.getState();
+      const result = game.effects!.effectSimple(neoCore.EF.CREATE_STAIRS, {
+        rng: state.rng, messages: { msg: (text) => messages.push(text) },
+        game: { state, teleport: { isQuest: () => level === "quest" } },
+      }, { origin: { what: "player" }, ident });
+      const blocked = enabled && (level === "quest" || level === "bottom");
+      expect(result).toBe(!blocked);
+      expect(ident.value).toBe(true);
+      if (blocked) {
+        expect(state.chunk.feat(grid)).toBe(neoCore.FEAT.FLOOR);
+        expect(messages).toEqual(["Nothing happens!"]);
+        expect(neoCore.floorPile(state, grid)).toContain(obj);
+        expect(state.rng.getState()).toEqual(before);
+      } else {
+        if (level === "quest" || level === "bottom") expect(state.chunk.feat(grid)).toBe(neoCore.FEAT.LESS);
+        else if (enabled && level !== "option off") expect(state.chunk.feat(grid)).toBe(neoCore.FEAT.MORE);
+        expect(neoCore.floorPile(state, grid)).not.toContain(obj);
+        expect(state.chunk.isStairs(grid)).toBe(true);
+      }
+      outcomes.push({ result, feat: state.chunk.feat(grid), messages, objectGrid: { ...obj.grid }, rng: state.rng.getState() });
+    }
+    if (level === "option off") expect(outcomes[1]).toEqual(outcomes[0]);
   });
 });
 
