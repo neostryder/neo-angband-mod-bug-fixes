@@ -49,7 +49,7 @@ import { allowArtifactCommit, allowPartialStackMerge, packOverflowVictim } from 
 const ARMOUR_TVALS = [10, 11, 12, 13, 14, 15, 16, 17, 18] as const;
 
 export default {
-  api: ">=2.0.0 <3.0.0",
+  api: ">=2.2.0 <3.0.0",
 
   hooks({ flags }: Api2HookContext): Api2Hooks {
     const hooks: Api2Hooks = {};

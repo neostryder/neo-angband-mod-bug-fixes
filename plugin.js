@@ -171,7 +171,7 @@ function allowArtifactCommit(alreadyCreated) {
 // plugin.ts
 var ARMOUR_TVALS = [10, 11, 12, 13, 14, 15, 16, 17, 18];
 var plugin_default = {
-  api: ">=2.0.0 <3.0.0",
+  api: ">=2.2.0 <3.0.0",
   hooks({ flags }) {
     const hooks = {};
     if (flags["bugfix.textAndHistory"] === true) {
