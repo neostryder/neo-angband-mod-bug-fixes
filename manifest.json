@@ -21,6 +21,7 @@
     "capabilities": [
       "engine:access",
       "registry:command",
+      "registry:effect-info",
       "registry:monster",
       "registry:projection",
       "registry:tval"

@@ -134,6 +134,8 @@ export default {
         monsterArcheryFrequency: { greaterThan: 25 },
         /* Upstream b4fb34b36 pushes targets away from the explosion. */
         forceFromBlastCenter: true,
+        /* Upstream 6772cd485 uses the inspection state's missile skills. */
+        missileCritFromState: true,
       } : {}),
     };
 

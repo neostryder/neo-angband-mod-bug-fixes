@@ -329,7 +329,7 @@ describe("the bug-fixes mod's entry point", () => {
     const armour = plugin.policies({ id: "bug-fixes", flags: { "bugfix.armourValueFloor": true } });
     const combined = plugin.policies({ id: "bug-fixes", flags: { ...ALL_ON, "bugfix.armourValueFloor": true } });
     expect(combined).toEqual({ ...state, ...combat, ...armour });
-    expect(Object.keys(combined!)).toHaveLength(7);
+    expect(Object.keys(combined!)).toHaveLength(8);
     expect(checkApi2Policies(combined)).toBeNull();
   });
 
@@ -470,7 +470,7 @@ describe("the six atomic flags survive the class regroup through rule and sectio
     expect(manifest.api).toBe(">=2.3.0 <3.0.0");
     expect(manifest.runtime).toBe("in-process");
     expect(manifest.entry).toBe("plugin.js");
-    expect(manifest.capabilities).toEqual(["engine:access", "registry:command", "registry:monster", "registry:projection", "registry:tval"]);
+    expect(manifest.capabilities).toEqual(["engine:access", "registry:command", "registry:effect-info", "registry:monster", "registry:projection", "registry:tval"]);
     const grant = matchCapability("registry:tval");
     expect(grant?.parsed).toEqual({ kind: "registry", domain: "tval" });
     expect(grant?.entry.tiers).toContain("first-party");
@@ -897,6 +897,88 @@ describe("monster archery - bugfix.combatFixes (#6710)", () => {
     expect(policyRegistrations({ "bugfix.combatFixes": false }).monsterArcheryFrequency).toBeUndefined();
     expect(policyRegistrations({ "bugfix.stateIntegrity": true }).monsterArcheryFrequency).toBeUndefined();
     expect(neoCore.monsterLovesArchery(mon)).toBe(frequency < 4);
+  });
+});
+
+describe("6772cd485: missile critical inputs - bugfix.combatFixes (#6742)", () => {
+  it.each([
+    [{}, false],
+    [{ "bugfix.combatFixes": false }, false],
+    [{ "bugfix.stateIntegrity": true }, false],
+    [{ "bugfix.levelGeneration": true }, false],
+    [{ "bugfix.combatFixes": true }, true],
+  ] as const)("requests effect-info only for Combat fixes: %j", (flags, enabled) => {
+    const policies = plugin.policies({ id: "bug-fixes", flags }) ?? {};
+    const grant = vi.fn((_capability: string) => true);
+    const effects = api2PolicyEffects(policies, grant);
+    expect(grant.mock.calls.some(([capability]) => capability === "registry:effect-info")).toBe(enabled);
+    expect(effects.registrations.missileCritFromState).toBe(enabled ? true : undefined);
+    expect(policyRegistrations(flags).missileCritFromState).toBe(enabled ? true : undefined);
+    expect(api2PolicyEffects(policies, (capability) => capability !== "registry:effect-info").registrations.missileCritFromState).toBeUndefined();
+  });
+
+  function fixture(launched: boolean) {
+    const game = policyArena(6742);
+    const { state } = game;
+    const reg = game.booted.registries.objects;
+    const constants = game.booted.registries.constants;
+    const kind = reg.kinds.find((k) => k.tval === (launched ? neoCore.TV.ARROW : neoCore.TV.SHOT))!;
+    const obj = objectPrep(new Rng(1), reg, constants, kind, 0, "minimise");
+    obj.flags.on(neoCore.OF.THROWING);
+    const deps = neoCore.makeObjectInfoDeps(state, obj, { constants, projections: [] }, true);
+    const derived = deps.deriveState(deps.equipObjects, 0, 0);
+    deps.currentState = { ...derived, skills: derived.skills.slice(), ammoTval: obj.tval, ammoMult: 2, numShots: 10 };
+    deps.bow = launched ? objectPrep(new Rng(1), reg, constants, reg.kinds.find((k) => k.tval === neoCore.TV.BOW)!, 0, "minimise") : null;
+    deps.deriveState = () => derived;
+    const policy = policyRegistrations({ "bugfix.combatFixes": true }).missileCritFromState;
+    const read = (enabled: boolean) => {
+      deps.hooks = enabled && policy ? { missileCritFromState: () => policy } : {};
+      const info = neoCore.objectCombatInfo(obj, deps)!;
+      return launched ? info.damage!.normal : info.thrownDamage!.normal;
+    };
+    return { state, deps, derived, read };
+  }
+
+  it.each([true, false])("uses the inspection to-hit with stock skill coefficients, launched %s", (launched) => {
+    const { state, deps, derived, read } = fixture(launched);
+    derived.toH = 1000;
+    deps.currentState.toH = 0;
+    const before = state.rng.getState();
+    const faithful = read(false);
+    const fixed = read(true);
+    expect(fixed).toBeGreaterThan(faithful);
+    deps.currentState.toH = 1000;
+    expect(read(false)).toBe(fixed);
+    expect(state.rng.getState()).toEqual(before);
+  });
+
+  it.each([true, false])("uses the inspection skill independently of live skill, launched %s", (launched) => {
+    const { deps, derived, read } = fixture(launched);
+    const skill = launched ? neoCore.SKILL.TO_HIT_BOW : neoCore.SKILL.TO_HIT_THROW;
+    const coefficient = launched ? "chanceLaunchedTohSkillScl" : "chanceThrownTohSkillScl";
+    const original = neoCore.RANGED_CRIT[coefficient];
+    /* Stock skill coefficients are zero, so a nonzero coefficient exposes the input. */
+    Reflect.set(neoCore.RANGED_CRIT, coefficient, 40);
+    try {
+      derived.skills[skill] = 100;
+      deps.currentState.skills[skill] = 0;
+      const faithful = read(false);
+      const fixed = read(true);
+      expect(fixed).toBeGreaterThan(faithful);
+      deps.currentState.skills[skill] = 100;
+      expect(read(false)).toBe(fixed);
+      expect(read(true)).toBe(fixed);
+    } finally {
+      Reflect.set(neoCore.RANGED_CRIT, coefficient, original);
+    }
+  });
+
+  it.each([true, false])("keeps O-combat inspection unchanged, launched %s", (launched) => {
+    const { deps, derived, read } = fixture(launched);
+    deps.percentDamage = true;
+    derived.toH = 1000;
+    deps.currentState.toH = 0;
+    expect(read(true)).toBe(read(false));
   });
 });
 

@@ -220,7 +220,9 @@ var plugin_default = {
       ...flags["bugfix.combatFixes"] === true ? {
         monsterArcheryFrequency: { greaterThan: 25 },
         /* Upstream b4fb34b36 pushes targets away from the explosion. */
-        forceFromBlastCenter: true
+        forceFromBlastCenter: true,
+        /* Upstream 6772cd485 uses the inspection state's missile skills. */
+        missileCritFromState: true
       } : {}
     };
     if (flags["bugfix.armourValueFloor"] === true) {
