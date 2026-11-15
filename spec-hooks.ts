@@ -10,10 +10,15 @@
 
 import * as neoCore from "@rpgm-tools/neo-angband-core";
 import type { ModHooks } from "@rpgm-tools/neo-angband-core";
+import type { Api2HookContext } from "@rpgm-tools/neo-angband-mod-sdk";
 import plugin from "./plugin";
 
+export function hookContext(): Api2HookContext {
+  return { id: "bug-fixes", flags: {}, settings: Object.freeze({}) };
+}
+
 export function specHooks(flags: Readonly<Record<string, boolean>>): ModHooks {
-  const real = plugin.hooks({ id: "bug-fixes", flags }) ?? {};
+  const real = plugin.hooks({ ...hookContext(), flags }) ?? {};
   const hooks: ModHooks = {};
   if (real.messageText) hooks.messageText = real.messageText;
   if (real.historyDisplay) hooks.historyDisplay = real.historyDisplay;
@@ -29,7 +34,7 @@ export function specHooks(flags: Readonly<Record<string, boolean>>): ModHooks {
     };
   }
   /* The game's own members, as the game asks for them: with the engine in hand. */
-  const own = (plugin.engineHooks?.({ id: "bug-fixes", flags, engine: { api: "1", core: neoCore, state: undefined, registries: undefined, registry: undefined } }) ?? {}) as Record<string, unknown>;
+  const own = (plugin.engineHooks?.({ ...hookContext(), flags, engine: { api: "1", core: neoCore, state: undefined, registries: undefined, registry: undefined } }) ?? {}) as Record<string, unknown>;
   for (const name of ["artifactCommit", "partialStackMerge", "packOverflowVictim", "levelGenerated"] as const) {
     if (own[name] !== undefined) (hooks as Record<string, unknown>)[name] = own[name];
   }

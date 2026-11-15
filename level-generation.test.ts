@@ -7,6 +7,7 @@ import manifestDocument from "./manifest.json";
 import vault from "./vault.json";
 import roomTemplate from "./room_template.json";
 import plugin from "./plugin";
+import { hookContext } from "./spec-hooks";
 
 const manifest = validateManifest(manifestDocument);
 const sectionId = "bugfix-level-generation";
@@ -46,7 +47,7 @@ describe("level generation template fixes", () => {
       expect(content.problems).toEqual([]);
       expect(content.faults).toEqual([]);
       const engine = { api: "1" as const, core: neoCore, state: undefined, registries: undefined, registry: undefined };
-      expect(typeof plugin.engineHooks({ id: "bug-fixes", flags, engine })["levelGenerated"])
+      expect(typeof plugin.engineHooks({ ...hookContext(), flags, engine })["levelGenerated"])
         .toBe(enabled ? "function" : "undefined");
     }
   });

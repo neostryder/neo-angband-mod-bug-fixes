@@ -51,17 +51,17 @@ import { api2PolicyEffects, apiRangeVerdict, CapabilitySet, checkApi2Policies, m
 import type { Api2Hooks, ModApi2 } from "@rpgm-tools/neo-angband-mod-sdk";
 import { armourValueFloor } from "./armour-value";
 import plugin from "./plugin";
-import { specHooks } from "./spec-hooks";
+import { hookContext, specHooks } from "./spec-hooks";
 
 /** The core hooks a real game runs for these flags (see spec-hooks.ts). */
 const bugFixesHooks = (flags: Readonly<Record<string, boolean>>): ModHooks => specHooks(flags);
 
 /** What the mod contributes to the game's mod API 2 for these flags. */
 const api2Hooks = (flags: Readonly<Record<string, boolean>>): Api2Hooks =>
-  plugin.hooks({ id: "bug-fixes", flags }) ?? {};
+  plugin.hooks({ ...hookContext(), flags }) ?? {};
 
 function policyRegistrations(flags: Readonly<Record<string, boolean>>) {
-  const policies = plugin.policies({ id: "bug-fixes", flags });
+  const policies = plugin.policies({ ...hookContext(), flags });
   expect(checkApi2Policies(policies ?? {})).toBeNull();
   const manifest = validateManifest(JSON.parse(readFileSync(new URL("./manifest.json", import.meta.url), "utf8")));
   expect(api2PolicyEffects(policies ?? {}, () => false).registrations).toEqual({});
@@ -86,7 +86,7 @@ function policyArena(seed: number) {
 
 /** The game's own hook members the mod returns, given its flags and an engine. */
 const engineHooksFor = (flags: Readonly<Record<string, boolean>>): Record<string, unknown> =>
-  (plugin.engineHooks?.({ id: "bug-fixes", flags, engine: { api: "1", core: neoCore, state: undefined, registries: undefined, registry: undefined } }) ?? {}) as Record<string, unknown>;
+  (plugin.engineHooks?.({ ...hookContext(), flags, engine: { api: "1", core: neoCore, state: undefined, registries: undefined, registry: undefined } }) ?? {}) as Record<string, unknown>;
 
 function startWith(flags: Readonly<Record<string, boolean>>): string[] {
   const lines: string[] = [];
@@ -320,15 +320,15 @@ describe("the bug-fixes mod's entry point", () => {
       CLASS_TO_HOOKS.map(([flag]) => [flag, false]),
     );
     expect(api2Hooks(allOff)).toEqual({});
-    expect(plugin.policies({ id: "bug-fixes", flags: allOff })).toBeUndefined();
+    expect(plugin.policies({ ...hookContext(), flags: allOff })).toBeUndefined();
   });
 
   it("The policy tables retain every enabled class when the flags are combined", () => {
-    const state = plugin.policies({ id: "bug-fixes", flags: { "bugfix.stateIntegrity": true } });
-    const combat = plugin.policies({ id: "bug-fixes", flags: { "bugfix.combatFixes": true } });
-    const level = plugin.policies({ id: "bug-fixes", flags: { "bugfix.levelGeneration": true } });
-    const armour = plugin.policies({ id: "bug-fixes", flags: { "bugfix.armourValueFloor": true } });
-    const combined = plugin.policies({ id: "bug-fixes", flags: { ...ALL_ON, "bugfix.armourValueFloor": true } });
+    const state = plugin.policies({ ...hookContext(), flags: { "bugfix.stateIntegrity": true } });
+    const combat = plugin.policies({ ...hookContext(), flags: { "bugfix.combatFixes": true } });
+    const level = plugin.policies({ ...hookContext(), flags: { "bugfix.levelGeneration": true } });
+    const armour = plugin.policies({ ...hookContext(), flags: { "bugfix.armourValueFloor": true } });
+    const combined = plugin.policies({ ...hookContext(), flags: { ...ALL_ON, "bugfix.armourValueFloor": true } });
     expect(combined).toEqual({ ...state, ...combat, ...level, ...armour });
     expect(Object.keys(combined!)).toHaveLength(9);
     expect(checkApi2Policies(combined)).toBeNull();
@@ -468,7 +468,7 @@ describe("the six atomic flags survive the class regroup through rule and sectio
     expect(Object.keys(manifestDocument)).toEqual(["format", "schemaVersion", "data"]);
     expect(manifestDocument.schemaVersion).toBe(2);
     expect(manifest.api).toBe(plugin.api);
-    expect(manifest.api).toBe(">=2.3.0 <3.0.0");
+    expect(manifest.api).toBe(">=2.4.0 <3.0.0");
     expect(manifest.runtime).toBe("in-process");
     expect(manifest.entry).toBe("plugin.js");
     expect(manifest.capabilities).toEqual(["engine:access", "registry:command", "registry:effect-info", "registry:monster", "registry:projection", "registry:room", "registry:tval"]);
@@ -909,7 +909,7 @@ describe("6772cd485: missile critical inputs - bugfix.combatFixes (#6742)", () =
     [{ "bugfix.levelGeneration": true }, false],
     [{ "bugfix.combatFixes": true }, true],
   ] as const)("requests effect-info only for Combat fixes: %j", (flags, enabled) => {
-    const policies = plugin.policies({ id: "bug-fixes", flags }) ?? {};
+    const policies = plugin.policies({ ...hookContext(), flags }) ?? {};
     const grant = vi.fn((_capability: string) => true);
     const effects = api2PolicyEffects(policies, grant);
     expect(grant.mock.calls.some(([capability]) => capability === "registry:effect-info")).toBe(enabled);
@@ -1056,7 +1056,7 @@ describe("27a260501: forced-descent stairs - bugfix.levelGeneration (#6700)", ()
     [{ "bugfix.stateIntegrity": true }, false],
     [{ "bugfix.levelGeneration": true }, true],
   ] as const)("requests room access only for Level generation fixes: %j", (flags, enabled) => {
-    const policies = plugin.policies({ id: "bug-fixes", flags }) ?? {};
+    const policies = plugin.policies({ ...hookContext(), flags }) ?? {};
     const grant = vi.fn((_capability: string) => true);
     const effects = api2PolicyEffects(policies, grant);
     expect(grant.mock.calls.some(([capability]) => capability === "registry:room")).toBe(enabled);
@@ -1333,23 +1333,23 @@ describe("complete rest - bugfix.stateIntegrity (#6803)", () => {
   ];
   const completeEffects = [...defaultEffects, "AMNESIA", "SCRAMBLE"];
   const policiesFor = (enabled: boolean) => plugin.policies({
-    id: "bug-fixes", flags: { "bugfix.stateIntegrity": enabled },
+    ...hookContext(), flags: { "bugfix.stateIntegrity": enabled },
   });
 
   it("declares the ten default effects plus amnesia and scramble, only while on", () => {
     expect(policiesFor(true)?.completeRestEffects).toEqual(completeEffects);
     expect(checkApi2Policies(policiesFor(true))).toBeNull();
     expect(policiesFor(false)).toBeUndefined();
-    expect(plugin.policies({ id: "bug-fixes", flags: {} })).toBeUndefined();
+    expect(plugin.policies({ ...hookContext(), flags: {} })).toBeUndefined();
   });
 
   it("keeps the armour floor and rest policies independent when both flags are on", () => {
-    const policies = plugin.policies({ id: "bug-fixes", flags: {
+    const policies = plugin.policies({ ...hookContext(), flags: {
       "bugfix.stateIntegrity": true, "bugfix.armourValueFloor": true,
     } });
     expect(policies?.completeRestEffects).toEqual(completeEffects);
     expect(policies?.valueFloor).toEqual(plugin.policies({
-      id: "bug-fixes", flags: { "bugfix.armourValueFloor": true },
+      ...hookContext(), flags: { "bugfix.armourValueFloor": true },
     })?.valueFloor);
     expect(checkApi2Policies(policies)).toBeNull();
   });
@@ -1394,12 +1394,12 @@ describe("complete rest - bugfix.stateIntegrity (#6803)", () => {
  */
 describe("valueFloor declaration - bugfix.armourValueFloor (#179)", () => {
   it("declares nothing while the flag is absent or off", () => {
-    expect(plugin.policies({ id: "bug-fixes", flags: {} })).toBeUndefined();
-    expect(plugin.policies({ id: "bug-fixes", flags: { "bugfix.armourValueFloor": false } })).toBeUndefined();
+    expect(plugin.policies({ ...hookContext(), flags: {} })).toBeUndefined();
+    expect(plugin.policies({ ...hookContext(), flags: { "bugfix.armourValueFloor": false } })).toBeUndefined();
   });
 
   it("declares the nine armour tvals in list-tvals.h order, and the host accepts the declaration", () => {
-    const policies = plugin.policies({ id: "bug-fixes", flags: { "bugfix.armourValueFloor": true } });
+    const policies = plugin.policies({ ...hookContext(), flags: { "bugfix.armourValueFloor": true } });
     expect(Object.keys(policies ?? {})).toEqual(["valueFloor"]);
     expect(checkApi2Policies(policies ?? {})).toBeNull();
     expect(policies?.valueFloor).toMatchObject({
