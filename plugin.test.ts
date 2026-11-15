@@ -330,7 +330,7 @@ describe("the bug-fixes mod's entry point", () => {
     const armour = plugin.policies({ ...hookContext(), flags: { "bugfix.armourValueFloor": true } });
     const combined = plugin.policies({ ...hookContext(), flags: { ...ALL_ON, "bugfix.armourValueFloor": true } });
     expect(combined).toEqual({ ...state, ...combat, ...level, ...armour });
-    expect(Object.keys(combined!)).toHaveLength(11);
+    expect(Object.keys(combined!)).toHaveLength(12);
     expect(checkApi2Policies(combined)).toBeNull();
   });
 
@@ -763,6 +763,154 @@ describe("e71cc96e8: experience updates - bugfix.stateIntegrity", () => {
       outcomes.push({ player: JSON.parse(JSON.stringify(p)), rng: game.state.rng.getState(), messages: msg.mock.calls, gains: onGainLevel.mock.calls.map(([, lev]) => lev) });
     }
     expect(outcomes[1]).toEqual(outcomes[0]);
+  });
+});
+
+describe("caff97e09: save-load rehydration - bugfix.stateIntegrity", () => {
+  function hooksFor(enabled: boolean): ModHooks {
+    const flags = { "bugfix.stateIntegrity": enabled };
+    const policy = policyRegistrations(flags).loadRehydration;
+    return { ...bugFixesHooks(flags), ...(policy ? { loadRehydration: () => policy.objectKnowledge && policy.noise === "restoreOrRebuild" } : {}) };
+  }
+
+  it.each([
+    [{}, false],
+    [{ "bugfix.stateIntegrity": false }, false],
+    [{ "bugfix.combatFixes": true }, false],
+    [{ "bugfix.levelGeneration": true }, false],
+    [{ "bugfix.stateIntegrity": true }, true],
+  ] as const)("gates rehydration on State integrity and rune access: %j", (flags, enabled) => {
+    const policies = plugin.policies({ ...hookContext(), flags }) ?? {};
+    const grant = vi.fn((_capability: string) => true);
+    const effects = api2PolicyEffects(policies, grant);
+    expect(grant.mock.calls.some(([capability]) => capability === "registry:rune")).toBe(enabled);
+    const expected = enabled ? { objectKnowledge: true, noise: "restoreOrRebuild" } : undefined;
+    expect(effects.registrations.loadRehydration).toEqual(expected);
+    expect(policyRegistrations(flags).loadRehydration).toEqual(expected);
+    expect(api2PolicyEffects(policies, (capability) => capability !== "registry:rune").registrations.loadRehydration).toBeUndefined();
+  });
+
+  function noiseSave(covertTracks: boolean) {
+    const game = policyArena(9797);
+    game.state.modHooks = hooksFor(true);
+    neoCore.makeNoise(game.state.chunk, { grid: { x: 9, y: 10 }, covertTracks });
+    const noise = Array.from(game.state.chunk.noise);
+    expect(noise.some((n) => n > 0)).toBe(true);
+    neoCore.placePlayer(game.state, { x: 12, y: 10 });
+    game.state.actor.player.timed[neoCore.timedNameToIdx("COVERTRACKS")] = covertTracks ? 0 : 10;
+    const saved = JSON.parse(JSON.stringify(saveGame(game))) as ReturnType<typeof saveGame>;
+    return { saved, noise };
+  }
+
+  it.each([false, true])("rebuilds missing noise from the historical source and falloff, covered %s", (covered) => {
+    const { saved, noise } = noiseSave(covered);
+    expect(saved.chunk!.noiseSource).toEqual({ x: 9, y: 10, increment: covered ? 4 : 1 });
+    const { noise: _noise, scent: _scent, ...chunk } = saved.chunk!;
+    const document = { ...saved, chunk };
+    const fixed = loadGame(pack, document, undefined, { modHooks: hooksFor(true) });
+    const faithful = loadGame(pack, document, undefined, { modHooks: hooksFor(false) });
+    expect(Array.from(fixed.state.chunk.noise)).toEqual(noise);
+    expect(Array.from(faithful.state.chunk.noise).every((n) => n === 0)).toBe(true);
+    expect(Array.from(fixed.state.chunk.scent).every((n) => n === 0)).toBe(true);
+    expect(fixed.state.rng.getState()).toEqual(faithful.state.rng.getState());
+  });
+
+  it.each([false, true])("preserves saved heatmaps even when all values are zero: %s", (silent) => {
+    const { saved } = noiseSave(false);
+    if (silent) saved.chunk!.noise!.fill(0);
+    saved.chunk!.scent![10 * saved.chunk!.width + 9] = 42;
+    for (const enabled of [false, true]) {
+      const restored = loadGame(pack, saved, undefined, { modHooks: hooksFor(enabled) });
+      expect(Array.from(restored.state.chunk.noise)).toEqual(saved.chunk!.noise);
+      expect(Array.from(restored.state.chunk.scent)).toEqual(saved.chunk!.scent);
+    }
+  });
+
+  it("keeps a save without noise or source history silent until world processing resumes", () => {
+    const { saved } = noiseSave(false);
+    const { noise: _noise, scent: _scent, noiseSource: _source, ...chunk } = saved.chunk!;
+    const restored = loadGame(pack, { ...saved, chunk }, undefined, { modHooks: hooksFor(true) });
+    expect(restored.state.chunk.noiseSource).toBeUndefined();
+    expect(Array.from(restored.state.chunk.noise).every((n) => n === 0)).toBe(true);
+    neoCore.processWorld(restored.state);
+    expect(Array.from(restored.state.chunk.noise).some((n) => n > 0)).toBe(true);
+  });
+
+  it.each([
+    { x: 0, y: 0, increment: 1 },
+    { x: -1, y: 10, increment: 1 },
+    { x: 9.5, y: 10, increment: 1 },
+    { x: 9, y: 10, increment: 2 },
+  ])("does not reconstruct noise from invalid history: %j", (noiseSource) => {
+    const { saved } = noiseSave(false);
+    const { noise: _noise, scent: _scent, ...chunk } = saved.chunk!;
+    const document = { ...saved, chunk: { ...chunk, noiseSource } } as ReturnType<typeof saveGame>;
+    const restored = loadGame(pack, document, undefined, { modHooks: hooksFor(true) });
+    expect(Array.from(restored.state.chunk.noise).every((n) => n === 0)).toBe(true);
+  });
+
+  it.each(["floor", "pack", "equipment"])("restores only learned jewelry knowledge for %s objects", (location) => {
+    for (const learned of [false, true]) {
+      const game = policyArena(9797);
+      const { state } = game;
+      const reg = game.booted.registries.objects;
+      const kind = reg.kinds.find((k) => k.tval === neoCore.TV.RING && k.name.includes("Free Action"))!;
+      expect(kind).toBeDefined();
+      const obj = objectPrep(new Rng(1), reg, game.booted.registries.constants, kind, 0, "minimise");
+      obj.notice |= neoCore.OBJ_NOTICE.ASSESSED;
+      const runes = neoCore.buildRuneList(state.runeEnv);
+      if (learned) {
+        for (const rune of runes) neoCore.playerLearnRune(state.actor.player, state.runeEnv, rune, false);
+      } else {
+        state.actor.player.objKnown.flags.wipe();
+      }
+      expect(neoCore.objectRunesKnown(state.actor.player, state.runeEnv, obj, runes.filter((r) => r.variety !== "curse"))).toBe(learned);
+      if (location === "floor") {
+        expect(neoCore.floorCarry(state, { x: 9, y: 10 }, obj)).toBe(true);
+      } else {
+        const handle = neoCore.gearAdd(state.gear, obj);
+        if (location === "pack") state.gear.pack.push(handle);
+        else state.actor.player.equipment[state.actor.player.body.slots.findIndex((slot) => slot.type === "RING")] = handle;
+      }
+      game.flavor.restore({ aware: [], tried: [] });
+      const saved = JSON.parse(JSON.stringify(saveGame(game))) as ReturnType<typeof saveGame>;
+      for (const enabled of [false, true]) {
+        const restored = loadGame(pack, saved, undefined, { modHooks: hooksFor(enabled) });
+        const restoredKind = restored.booted.registries.objects.kinds.find((k) => k.kidx === kind.kidx)!;
+        expect(restored.flavor.isAware(restoredKind)).toBe(enabled && learned);
+      }
+    }
+  });
+
+  it.each([false, true])("restores curse-template combat knowledge only for learned runes: %s", (learned) => {
+    const game = policyArena(9797);
+    const { state } = game;
+    const reg = game.booted.registries.objects;
+    const index = reg.curses.findIndex((curse) => curse !== null && curse.obj.toH !== 0);
+    expect(index).toBeGreaterThan(0);
+    const curse = reg.curses[index]!;
+    const kind = reg.kinds.find((k) => k.tval === neoCore.TV.RING && k.name.includes("Free Action"))!;
+    const obj = objectPrep(new Rng(1), reg, game.booted.registries.constants, kind, 0, "minimise");
+    obj.notice |= neoCore.OBJ_NOTICE.ASSESSED;
+    obj.curses = Array.from({ length: reg.curses.length }, () => ({ power: 0, timeout: 0 }));
+    obj.curses[index]!.power = 50;
+    const p = state.actor.player;
+    p.objKnown.toH = learned ? 1 : 0;
+    p.objKnown.curses[index] = 1;
+    p.equipment[p.body.slots.findIndex((slot) => slot.type === "RING")] = neoCore.gearAdd(state.gear, obj);
+    const saved = JSON.parse(JSON.stringify(saveGame(game))) as ReturnType<typeof saveGame>;
+    const fixed = loadGame(pack, saved, undefined, { modHooks: hooksFor(true) });
+    const faithful = loadGame(pack, saved, undefined, { modHooks: hooksFor(false) });
+    expect(fixed.state.knownPlayerState!.toH - faithful.state.knownPlayerState!.toH).toBe(learned ? curse.obj.toH : 0);
+    expect(fixed.state.playerState).toEqual(faithful.state.playerState);
+  });
+
+  it("skips rehydration for dead characters", () => {
+    const { saved } = noiseSave(false);
+    const { noise: _noise, scent: _scent, ...chunk } = saved.chunk!;
+    const restored = loadGame(pack, { ...saved, chunk, isDead: true }, undefined, { modHooks: hooksFor(true) });
+    expect(restored.state.isDead).toBe(true);
+    expect(Array.from(restored.state.chunk.noise).every((n) => n === 0)).toBe(true);
   });
 });
 

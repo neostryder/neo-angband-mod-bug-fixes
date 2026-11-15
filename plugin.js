@@ -201,6 +201,8 @@ var plugin_default = {
         flagIntersectionResult: "removedBits",
         /* Upstream e71cc96e8 refreshes derived state only on a level change. */
         experienceUpdates: "levelChangeOnly",
+        /* Upstream caff97e09 restores knowledge and historical noise on load. */
+        loadRehydration: { objectKnowledge: true, noise: "restoreOrRebuild" },
         completeRestEffects: [
           "BLIND",
           "CONFUSED",
