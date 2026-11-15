@@ -122,6 +122,8 @@ export default {
         ],
         /* Upstream 1d2ad35a2 and fc29847fd treat nonpositive light as dark. */
         forgetUnlitImpassableTerrain: true,
+        /* Upstream 29985cd05 requires knowledge of every actual race flag. */
+        monsterLoreCompleteness: true,
       } : {}),
       /* Upstream dd0e40858 restores the percentage threshold for archers. */
       ...(flags["bugfix.combatFixes"] === true ? {

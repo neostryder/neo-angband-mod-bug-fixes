@@ -856,6 +856,65 @@ describe("unlit terrain memory - bugfix.stateIntegrity (#6731)", () => {
   });
 });
 
+describe("monster lore completeness - bugfix.stateIntegrity (#6715)", () => {
+  it.each(["known", "missing", "extra spell"] as const)("Core checks %s race lore with the policy on and off", (knowledge) => {
+    for (const enabled of [false, true]) {
+      const game = policyArena(6715);
+      const state = game.state;
+      const original = game.booted.registries.monsters.races.find((r) => r.name === "kobold archer")!;
+      const race = { ...original, flags: new FlagSet(RF_SIZE) };
+      race.flags.on(RF.UNIQUE);
+      const lore = neoCore.getLore(state.lore, race);
+      lore.allKnown = false;
+      lore.armourKnown = lore.dropKnown = lore.sleepKnown = lore.spellFreqKnown = true;
+      lore.blowKnown.fill(true);
+      lore.flags.copy(race.flags);
+      lore.spellFlags.copy(race.spellFlags);
+      if (knowledge === "missing") lore.flags.bits.fill(0x80);
+      if (knowledge === "extra spell") {
+        lore.flags.setall();
+        lore.spellFlags.on(neoCore.RSF.SHRIEK);
+      }
+      const policy = policyRegistrations({ "bugfix.stateIntegrity": enabled }).monsterLoreCompleteness;
+      expect(policy).toBe(enabled ? true : undefined);
+      expect(policyRegistrations({ "bugfix.combatFixes": true }).monsterLoreCompleteness).toBeUndefined();
+      state.modHooks = policy ? { monsterLoreCompleteness: () => policy } : {};
+      expect(neoCore.loreIsFullyKnown(state.lore, race)).toBe(
+        knowledge === "known" ? enabled : knowledge === "missing" && !enabled,
+      );
+    }
+  });
+
+  it.each([false, true])("Core learns display flags at first sight and generation flags at death with state integrity %s", (enabled) => {
+    const game = policyArena(6715);
+    const state = game.state;
+    const race = game.booted.registries.monsters.races.find((r) => r.name === "kobold archer")!;
+    const mon = neoCore.blankMonster(race);
+    mon.midx = 1;
+    mon.grid = { x: 9, y: 10 };
+    state.monsters[1] = mon;
+    state.chunk.setMon(mon.grid, 1);
+    state.chunk.sqinfoOn(mon.grid, neoCore.SQUARE.VIEW);
+    state.chunk.sqinfoOn(mon.grid, neoCore.SQUARE.SEEN);
+    const lore = neoCore.getLore(state.lore, race);
+    lore.flags.wipe();
+    lore.sights = lore.tkills = 0;
+    lore.allKnown = false;
+    const policy = policyRegistrations({ "bugfix.stateIntegrity": enabled }).monsterLoreCompleteness;
+    expect(policy).toBe(enabled ? true : undefined);
+    state.modHooks = policy ? { monsterLoreCompleteness: () => policy } : {};
+    neoCore.updateMon(state, mon, true);
+    expect(lore.sights).toBe(1);
+    expect(lore.flags.has(RF.ATTR_MULTI)).toBe(enabled);
+    expect(lore.flags.has(RF.FORCE_SLEEP)).toBe(false);
+    lore.tkills = 1;
+    neoCore.loreUpdate(race, lore);
+    expect(lore.flags.has(RF.ATTR_MULTI)).toBe(enabled);
+    expect(lore.flags.has(RF.FORCE_SLEEP)).toBe(enabled);
+    expect(lore.flags.has(RF.FORCE_DEPTH)).toBe(true);
+  });
+});
+
 describe("complete rest - bugfix.stateIntegrity (#6803)", () => {
   const defaultEffects = [
     "BLIND", "CONFUSED", "POISONED", "AFRAID", "TERROR", "STUN",
