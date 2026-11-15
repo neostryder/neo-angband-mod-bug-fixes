@@ -4,7 +4,8 @@ Rules are rebuilt as live hooks, so their changes apply immediately. Sections al
 
 | Flag | Default | What it does | Reload required |
 | --- | --- | --- | --- |
-| `bugfix.stateIntegrity` | on | Keeps saved tracking, item ordering, artifact creation, stack charges, and quiver overflow consistent. | No, hooks side. |
+| `bugfix.stateIntegrity` | on | Keeps saved tracking, item ordering, artifact creation, stack charges, quiver overflow, unlit terrain memory, monster lore completeness, and theft counts consistent. | No, hooks side. |
+| `bugfix.combatFixes` | on | Monsters prefer archery only when their innate spell frequency is above 25 percent, and FORCE explosions push targets away from the blast center. | No, hooks side. |
 | `bugfix.levelGeneration` | on | Replaces a staircase stranded inside an unreachable vault. | No, hooks side. |
 | `bugfix.textAndHistory` | on | Corrects selected text, history, and lore descriptions. | Yes, section. |
 | `bugfix.borgFixes` | on | Checks Borg buff tracking against the engine's actual buff timers. | Yes, section. |

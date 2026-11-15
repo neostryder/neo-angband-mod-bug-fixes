@@ -15,6 +15,7 @@ switch has no flag of its own, the game knows it by its section id instead.
 | Setting | Identifier | Default | What it does |
 | --- | --- | --- | --- |
 | State integrity fixes | `bugfix.stateIntegrity` | on | Keeps the game's own bookkeeping consistent with itself, including across a save and reload. |
+| Combat fixes | `bugfix.combatFixes` | on | Monsters prefer archery only when their innate spell frequency is above 25 percent, and FORCE explosions push targets away from the blast center instead of the caster. |
 | Level generation fixes | `bugfix.levelGeneration` | on | Fixes that change the layout of a level. |
 | Text and history fixes | `bugfix.textAndHistory` | on | Corrects text the game shows you, with no change to game state. [TEXT_CHANGES.md](../TEXT_CHANGES.md) lists every change. |
 | Borg Fixes | `bugfix.borgFixes` | on | Fixes for the Borg's own bookkeeping. |
@@ -25,7 +26,7 @@ switch has no flag of its own, the game knows it by its section id instead.
 - **Engine:** `>=1.23.0-beta.1`
 - **Shape:** `content`
 - **Facets:** `content`, `plugin`
-- **Capabilities:** `engine:access` - only while "Level generation fixes" or "State integrity fixes" is on, to reach the game's own hooks for those fixes. `registry:tval` - only while "Fix magical armour pricing below plainer armour" is on, to install its store-value adjustment.
+- **Capabilities:** `engine:access` - only while "Level generation fixes" or "State integrity fixes" is on, to reach the game's own hooks for those fixes. `registry:tval` - only while "Fix magical armour pricing below plainer armour" is on, to install its store-value adjustment. `registry:monster` - only while "Combat fixes" or "State integrity fixes" is on, to apply the monster archery, monster lore completeness, and theft count fixes. `registry:projection` - only while "Combat fixes" or "State integrity fixes" is on, to push FORCE knockback out from the blast center and to forget unlit impassable terrain.
 
 What a capability string permits, and what a mod that asks for one cannot do
 without it, is in [the mod lifecycle
