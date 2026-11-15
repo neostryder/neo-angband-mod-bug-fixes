@@ -824,6 +824,38 @@ describe("FORCE blast center - bugfix.combatFixes (#6747)", () => {
   });
 });
 
+describe("unlit terrain memory - bugfix.stateIntegrity (#6731)", () => {
+  it.each([
+    [0, false, false, "wall"],
+    [-1, false, false, "wall"],
+    [1, false, false, "wall"],
+    [0, true, false, "wall"],
+    [-1, true, false, "wall"],
+    [1, true, true, "wall"],
+    [0, false, false, "floor"],
+    [0, false, false, "unknown"],
+  ] as const)("Core updates memory for light %i, UNLIGHT %s, blindness %s and remembered %s", (light, unlight, blind, terrain) => {
+    for (const enabled of [false, true]) {
+      const { state } = policyArena(6731);
+      const grid = state.actor.grid;
+      const remembered = terrain === "wall" ? neoCore.FEAT.GRANITE : neoCore.FEAT.FLOOR;
+      state.known.feat[grid.y * state.known.width + grid.x] = terrain === "unknown" ? -1 : remembered;
+      state.chunk.sqinfoOff(grid, neoCore.SQUARE.SEEN);
+      state.actor.light = light;
+      state.actor.unlight = unlight;
+      state.actor.player.timed[neoCore.TMD.BLIND] = blind ? 1 : 0;
+      const policy = policyRegistrations({ "bugfix.stateIntegrity": enabled }).forgetUnlitImpassableTerrain;
+      expect(policy).toBe(enabled ? true : undefined);
+      expect(policyRegistrations({ "bugfix.combatFixes": true }).forgetUnlitImpassableTerrain).toBeUndefined();
+      state.modHooks = policy ? { forgetUnlitImpassableTerrain: () => policy } : {};
+      neoCore.noteSpots(state);
+      const forgotten = terrain === "unknown" ||
+        (terrain === "wall" && (blind || (enabled && light <= 0 && !unlight)));
+      expect(neoCore.knownFeat(state, grid)).toBe(forgotten ? -1 : remembered);
+    }
+  });
+});
+
 describe("complete rest - bugfix.stateIntegrity (#6803)", () => {
   const defaultEffects = [
     "BLIND", "CONFUSED", "POISONED", "AFRAID", "TERROR", "STUN",

@@ -120,6 +120,8 @@ export default {
           "BLIND", "CONFUSED", "POISONED", "AFRAID", "TERROR", "STUN",
           "CUT", "SLOW", "PARALYZED", "IMAGE", "AMNESIA", "SCRAMBLE",
         ],
+        /* Upstream 1d2ad35a2 and fc29847fd treat nonpositive light as dark. */
+        forgetUnlitImpassableTerrain: true,
       } : {}),
       /* Upstream dd0e40858 restores the percentage threshold for archers. */
       ...(flags["bugfix.combatFixes"] === true ? {
