@@ -10,7 +10,7 @@
  */
 
 import { readFileSync } from "node:fs";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   loadPackFile as loadJson,
   loadPackRecords as loadRecords,
@@ -47,7 +47,7 @@ import type {
 } from "@rpgm-tools/neo-angband-core";
 import * as neoCore from "@rpgm-tools/neo-angband-core";
 import { apiRangeVerdict, checkApi2Policies, matchCapability, validateManifest } from "@rpgm-tools/neo-angband-mod-sdk";
-import type { Api2Hooks, ModApi2 } from "@rpgm-tools/neo-angband-mod-sdk";
+import type { Api2Hooks, HudFrame, HudSection, ModApi2 } from "@rpgm-tools/neo-angband-mod-sdk";
 import { armourValueFloor } from "./armour-value";
 import plugin from "./plugin";
 import { specHooks } from "./spec-hooks";
@@ -139,6 +139,183 @@ const CLASS_TO_HOOKS: readonly [string, readonly string[]][] = [
   ["bugfix.stateIntegrity", ["saveNoiseScent", "objectListTiebreak"]],
   ["bugfix.levelGeneration", []],
 ];
+
+describe("0107bbad9: the status line uses remembered terrain and traps", () => {
+  class Element {
+    readonly style = { cssText: "" };
+    hidden = false;
+    textContent: string | null = null;
+    children: Element[] = [];
+    appendChild(child: Element): void { this.children.push(child); }
+    replaceChildren(): void { this.children = []; }
+    remove(): void { this.hidden = true; }
+  }
+
+  afterEach(() => {
+    plugin.stop();
+    vi.unstubAllGlobals();
+  });
+
+  function fixture() {
+    const { state } = startGame(pack, { seed: 107, depth: 1 });
+    const body = new Element();
+    vi.stubGlobal("document", { body, createElement: () => new Element() });
+    const mod = {
+      meta: { flags: { "bugfix.stateIntegrity": true } },
+      engine: { core: neoCore, state },
+    } as unknown as ModApi2;
+    const status: HudSection = {
+      name: "status",
+      region: {
+        name: "status", cells: { col: 0, row: 23, cols: 160, rows: 1 },
+        pixels: { x: 7, y: 500, width: 1600, height: 20 },
+      },
+      clip: { col: 0, row: 23, cols: 159, rows: 1 },
+      entries: neoCore.statusLineModel(state).map((entry, i) => ({
+        ...entry, screen: { col: i * 12, row: 23 },
+        runs: entry.runs.map((run) => ({ ...run, css: neoCore.colorToCss(run.color) })),
+      })),
+    };
+    const frame: HudFrame = { layout: "left", targeting: false, messages: { name: "messages", entries: [], clip: { col: 0, row: 0, cols: 160, rows: 1 } }, status };
+    const sink = plugin.presentation.hud(mod)!.status!;
+    const panel = body.children[0]!;
+    const index = state.actor.grid.y * state.chunk.width + state.actor.grid.x;
+    const kinds = neoCore.bindTraps(loadRecords("trap") as Parameters<typeof neoCore.bindTraps>[0]);
+    const pit = kinds.find((kind) => kind.name === "pit")!;
+    const installPit = () => neoCore.installTrap(state, state.actor.grid, pit.tidx, 1, { kinds });
+    const text = () => panel.children.filter((cell) => cell.style.cssText.includes("top:0px")).map((cell) => cell.textContent).join("");
+    const terrain = () => {
+      sink.present({ ...status, entries: [status.entries.find((entry) => entry.key === "terrain")!] }, frame);
+      return text();
+    };
+    return { state, mod, status, frame, sink, panel, index, text, terrain, installPit };
+  }
+
+  it("declines status ownership when the toggle is off, engine is absent, or no document exists", () => {
+    const { mod } = fixture();
+    for (const flags of [{}, { "bugfix.stateIntegrity": false }]) {
+      expect(plugin.presentation.hud({ ...mod, meta: { ...mod.meta, flags } })).toBeUndefined();
+    }
+    expect(plugin.presentation.hud({ meta: mod.meta } as ModApi2)).toBeUndefined();
+    vi.stubGlobal("document", undefined);
+    expect(plugin.presentation.hud(mod)).toBeUndefined();
+  });
+
+  it.each([
+    ["seen staircase", neoCore.FEAT.MORE, "Down staircase ", "MORE"],
+    ["seen lava", neoCore.FEAT.LAVA, "Lava ", "LAVA"],
+    ["blind unknown", -1, "Unknown grid ", "NONE"],
+    ["unlit unknown", -1, "Unknown grid ", "NONE"],
+    ["remembered staircase", neoCore.FEAT.MORE, "Down staircase ", "MORE"],
+    ["mimicked secret door", neoCore.FEAT.SECRET, "Granite wall ", "GRANITE"],
+  ] as const)("renders %s with the remembered display color", (label, remembered, expected, code) => {
+    const f = fixture();
+    if (label.startsWith("blind")) f.state.actor.player.timed[neoCore.TMD.BLIND] = 1;
+    if (label.startsWith("unlit") && f.state.playerState) f.state.playerState.curLight = 0;
+    f.state.chunk.setFeat(f.state.actor.grid, neoCore.FEAT.FLOOR);
+    f.state.known.feat[f.index] = remembered;
+    expect(f.terrain()).toBe(expected);
+    const color = neoCore.colorToCss(neoCore.colorCharToAttr(f.state.chunk.features.byCodeName(code).dAttr));
+    expect(f.panel.children[0]!.style.cssText).toContain(`color:${color}`);
+  });
+
+  it("keeps terrain memory fixed while unseen terrain and traps change", () => {
+    const f = fixture();
+    f.state.known.feat[f.index] = neoCore.FEAT.MORE;
+    expect(f.terrain()).toBe("Down staircase ");
+    f.state.chunk.sqinfoOff(f.state.actor.grid, neoCore.SQUARE.SEEN);
+    f.state.chunk.setFeat(f.state.actor.grid, neoCore.FEAT.LAVA);
+    f.installPit();
+    f.state.known.feat[f.index] = neoCore.FEAT.MORE;
+    expect(f.terrain()).toBe("Down staircase ");
+    Object.defineProperty(f.state, "traps", { get: () => { throw new Error("Live traps are unknown"); } });
+    vi.spyOn(f.state.chunk, "feature").mockImplementation(() => { throw new Error("Live terrain is unknown"); });
+    expect(f.terrain()).toBe("Down staircase ");
+  });
+
+  it("remembers a pit after removal, suppresses forgotten trap memory, and accepts refreshed memory", () => {
+    const f = fixture();
+    f.state.chunk.setFeat(f.state.actor.grid, neoCore.FEAT.FLOOR);
+    neoCore.squareMemorize(f.state, f.state.actor.grid);
+    f.installPit();
+    const pit = f.state.traps.get(f.index)![0]!;
+    pit.flags.on(neoCore.TRF.VISIBLE);
+    neoCore.squareMemorizeTraps(f.state, f.state.actor.grid);
+    expect(f.terrain()).toBe("Pit ");
+    expect(f.panel.children[0]!.style.cssText).toContain(`color:${neoCore.colorToCss(neoCore.colorCharToAttr(pit.kind.color))}`);
+    f.state.actor.player.timed[neoCore.TMD.BLIND] = 1;
+    expect(f.terrain()).toBe("Pit ");
+    f.state.actor.player.timed[neoCore.TMD.BLIND] = 0;
+    if (f.state.playerState) f.state.playerState.curLight = 0;
+    expect(f.terrain()).toBe("Pit ");
+    f.state.traps.delete(f.index);
+    expect(f.terrain()).toBe("Pit ");
+    for (const unknown of [-1, 0]) {
+      f.state.known.feat[f.index] = unknown;
+      expect(f.terrain()).toBe("Unknown grid ");
+      expect(neoCore.squareKnownTraps(f.state.known, f.state.actor.grid)).toHaveLength(1);
+    }
+    neoCore.squareMemorize(f.state, f.state.actor.grid);
+    neoCore.squareMemorizeTraps(f.state, f.state.actor.grid);
+    expect(f.terrain()).toBe("Open floor ");
+  });
+
+  it("updates the display when visible terrain memory changes", () => {
+    const f = fixture();
+    f.state.chunk.setFeat(f.state.actor.grid, neoCore.FEAT.MORE);
+    expect(f.terrain()).toBe("Down staircase ");
+    f.state.chunk.setFeat(f.state.actor.grid, neoCore.FEAT.LAVA);
+    expect(f.terrain()).toBe("Lava ");
+  });
+
+  it("hides a live trap absent from memory while the faithful status exposes it", () => {
+    const f = fixture();
+    f.state.chunk.setFeat(f.state.actor.grid, neoCore.FEAT.FLOOR);
+    neoCore.squareMemorize(f.state, f.state.actor.grid);
+    f.installPit();
+    f.state.chunk.sqinfoOff(f.state.actor.grid, neoCore.SQUARE.INVIS);
+    expect(neoCore.statusLineModel(f.state).find((e) => e.key === "terrain")!.runs[0]!.text).toBe("Pit ");
+    expect(f.terrain()).toBe("Open floor ");
+  });
+
+  it("retains every other entry's text, color, and placement in all layouts", () => {
+    const f = fixture();
+    f.state.known.feat[f.index] = neoCore.FEAT.MORE;
+    const entries = f.status.entries.filter((entry) => entry.key !== "terrain").map((entry, i) => ({
+      ...entry, runs: [{ text: `${entry.key}!`, css: "red" }, { text: "?", css: "blue" }], screen: { col: i * 12, row: 23 },
+    }));
+    const section = { ...f.status, entries: [...entries, f.status.entries.find((entry) => entry.key === "terrain")!] };
+    const before = structuredClone(section);
+    for (const layout of ["left", "top", "none"] as const) {
+      f.sink.present(section, { ...f.frame, layout });
+      expect(f.text()).toBe(entries.map((entry) => `${entry.key}!?`).join("") + "Down staircase ");
+      expect(f.panel.children[0]!.style.cssText).toContain("left:0px;top:0px");
+      expect(f.panel.children[0]!.style.cssText).toContain("color:red");
+      expect(f.panel.children[entries[0]!.runs[0]!.text.length]!.style.cssText).toContain("color:blue");
+      expect(f.panel.children[entries[0]!.runs[0]!.text.length + 1]!.style.cssText).toContain("left:120px");
+      expect(section).toEqual(before);
+    }
+  });
+
+  it("retains targeting help and its extended clip, and hides when covered or geometry is absent", () => {
+    const f = fixture();
+    const status = { ...f.status, clip: { col: 1, row: 21, cols: 158, rows: 3 }, entries: [{ key: "help", runs: [{ text: "Target help", css: "yellow" }], screen: { col: 2, row: 21 } }] };
+    f.sink.present(status, { ...f.frame, targeting: true });
+    expect(f.text()).toBe("Target help");
+    expect(f.panel.style.cssText).toContain("left:17px;top:460px;width:1580px;height:60px");
+    const base = { id: "status", layer: "base" as const, cells: f.status.region!.cells };
+    f.sink.present(status, { ...f.frame, stack: [base, { id: "menu", layer: "modal", cells: { col: 1, row: 21, cols: 10, rows: 1 } }] });
+    expect(f.panel.hidden).toBe(true);
+    f.sink.present(f.status, { ...f.frame, stack: [{ ...base, id: "menu" }] });
+    expect(f.panel.hidden).toBe(true);
+    f.sink.present({ name: "status", clip: status.clip, entries: [] }, f.frame);
+    expect(f.panel.hidden).toBe(true);
+    f.sink.present(f.status, { ...f.frame, stack: [base] });
+    expect(f.panel.hidden).toBe(false);
+    plugin.stop();
+    expect(f.panel.hidden).toBe(true);
+  });
+});
 
 describe("the bug-fixes mod's entry point", () => {
   it("matches the manifest: every runtime hook class has a declared rule or section flag", () => {
@@ -289,7 +466,7 @@ describe("the six atomic flags survive the class regroup through rule and sectio
     expect(manifest.api).toBe(">=2.0.0 <3.0.0");
     expect(manifest.runtime).toBe("in-process");
     expect(manifest.entry).toBe("plugin.js");
-    expect(manifest.capabilities).toEqual(["engine:access", "registry:tval"]);
+    expect(manifest.capabilities).toEqual(["engine:access", "registry:tval", "ui:status.replace"]);
     const grant = matchCapability("registry:tval");
     expect(grant?.parsed).toEqual({ kind: "registry", domain: "tval" });
     expect(grant?.entry.tiers).toContain("first-party");

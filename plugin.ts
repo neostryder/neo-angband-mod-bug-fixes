@@ -14,7 +14,8 @@
  * ENTRY POINT CONTRACT
  * ------------------------------------------------------------------
  *
- * The default export is a mod API 2 definition. The mod reads no engine member:
+ * The default export is a mod API 2 definition. The status presenter reads
+ * remembered terrain through the consented engine domain. The other
  * `hooks` and `policies` are handed the mod's resolved rule flags and return
  * plain functions of plain data, or declarations the host interprets, so this
  * file imports the SDK for TYPES ONLY. A module fetched from a folder cannot
@@ -35,7 +36,8 @@
  * stairs.ts and state-rules.ts.
  */
 
-import type { Api2Engine, Api2HookContext, Api2Hooks, Api2ModDefinition, Api2Policies, ModApi2 } from "@rpgm-tools/neo-angband-mod-sdk";
+import type { Api2Engine, Api2HookContext, Api2Hooks, Api2ModDefinition, Api2Policies, HudOwnership, ModApi2 } from "@rpgm-tools/neo-angband-mod-sdk";
+import type { GameState } from "@rpgm-tools/neo-angband-core";
 import { expandRawUserNote } from "./history";
 import { ensureStairsReachable, type StairsCore } from "./stairs";
 import { textAndHistoryMessage } from "./strings";
@@ -48,8 +50,85 @@ import { allowArtifactCommit, allowPartialStackMerge, packOverflowVictim } from 
  */
 const ARMOUR_TVALS = [10, 11, 12, 13, 14, 15, 16, 17, 18] as const;
 
+interface StatusElement {
+  readonly style: { cssText: string };
+  hidden: boolean;
+  textContent: string | null;
+  appendChild(child: StatusElement): unknown;
+  replaceChildren(): void;
+  remove(): void;
+}
+
+interface StatusDocument {
+  readonly body: StatusElement;
+  createElement(tag: string): StatusElement;
+}
+
+let statusPanel: StatusElement | undefined;
+
 export default {
   api: ">=2.0.0 <3.0.0",
+
+  presentation: {
+    hud(mod: ModApi2): HudOwnership | undefined {
+      if (mod.meta.flags["bugfix.stateIntegrity"] !== true || !mod.engine) return undefined;
+      const doc = (globalThis as { document?: StatusDocument }).document;
+      if (!doc) return undefined;
+      const engine = mod.engine;
+      const core = engine.core as typeof import("@rpgm-tools/neo-angband-core");
+      statusPanel?.remove();
+      const panel = statusPanel = doc.createElement("div");
+      panel.hidden = true;
+      doc.body.appendChild(panel);
+      return {
+        status: {
+          present(section, frame): void {
+            panel.hidden = true;
+            panel.replaceChildren();
+            const region = section.region;
+            const pixels = region?.pixels;
+            if (!region || !pixels || region.cells.cols <= 0 || region.cells.rows <= 0) return;
+            const clip = section.clip;
+            if (frame.stack && frame.stack.length > 0) {
+              const at = frame.stack.findIndex((r) => r.id === region.name);
+              if (at < 0 || frame.stack.slice(at + 1).some(({ cells: r }) =>
+                r.col < clip.col + clip.cols && clip.col < r.col + r.cols &&
+                r.row < clip.row + clip.rows && clip.row < r.row + r.rows)) return;
+            }
+            const width = pixels.width / region.cells.cols;
+            const height = pixels.height / region.cells.rows;
+            panel.style.cssText = `position:fixed;pointer-events:none;overflow:hidden;z-index:10;left:${pixels.x + (clip.col - region.cells.col) * width}px;top:${pixels.y + (clip.row - region.cells.row) * height}px;width:${clip.cols * width}px;height:${clip.rows * height}px;font:${height}px/${height}px monospace;white-space:pre`;
+            for (const entry of section.entries) {
+              let runs = entry.runs;
+              if (!frame.targeting && entry.key === "terrain") {
+                const state = engine.state as GameState | undefined;
+                if (!state) return;
+                const grid = state.actor.grid;
+                const remembered = core.knownFeat(state, grid);
+                let feat = state.chunk.features.get(remembered < 0 ? 0 : remembered);
+                if (feat.mimic !== null) feat = state.chunk.features.get(feat.mimic);
+                /* Upstream 0107bbad9 hides leftover traps when terrain was forgotten. */
+                const trap = remembered > 0 ? core.squareKnownTraps(state.known, grid)[0] : undefined;
+                const name = trap?.name ?? feat.name;
+                const color = core.colorCharToAttr(trap?.color ?? feat.dAttr);
+                runs = [{ text: `${name.charAt(0).toUpperCase()}${name.slice(1)} `, color, css: core.colorToCss(color) }];
+              }
+              let col = entry.screen.col;
+              for (const run of runs) {
+                for (const ch of run.text) {
+                  const cell = doc.createElement("span");
+                  cell.textContent = ch;
+                  cell.style.cssText = `position:absolute;left:${(col++ - clip.col) * width}px;top:${(entry.screen.row - clip.row) * height}px;width:${width}px;height:${height}px;color:${run.css}`;
+                  panel.appendChild(cell);
+                }
+              }
+            }
+            panel.hidden = false;
+          },
+        },
+      };
+    },
+  },
 
   hooks({ flags }: Api2HookContext): Api2Hooks {
     const hooks: Api2Hooks = {};
@@ -160,5 +239,10 @@ export default {
 
   start(mod: ModApi2): void {
     if (mod.meta.flags["bugfix.armourValueFloor"] === true) mod.meta.log("armour value floor declared (#179)");
+  },
+
+  stop(): void {
+    statusPanel?.remove();
+    statusPanel = undefined;
   },
 } satisfies Api2ModDefinition;

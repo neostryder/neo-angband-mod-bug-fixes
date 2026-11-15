@@ -170,8 +170,66 @@ function allowArtifactCommit(alreadyCreated) {
 
 // plugin.ts
 var ARMOUR_TVALS = [10, 11, 12, 13, 14, 15, 16, 17, 18];
+var statusPanel;
 var plugin_default = {
   api: ">=2.0.0 <3.0.0",
+  presentation: {
+    hud(mod) {
+      if (mod.meta.flags["bugfix.stateIntegrity"] !== true || !mod.engine) return void 0;
+      const doc = globalThis.document;
+      if (!doc) return void 0;
+      const engine = mod.engine;
+      const core = engine.core;
+      statusPanel?.remove();
+      const panel = statusPanel = doc.createElement("div");
+      panel.hidden = true;
+      doc.body.appendChild(panel);
+      return {
+        status: {
+          present(section, frame) {
+            panel.hidden = true;
+            panel.replaceChildren();
+            const region = section.region;
+            const pixels = region?.pixels;
+            if (!region || !pixels || region.cells.cols <= 0 || region.cells.rows <= 0) return;
+            const clip = section.clip;
+            if (frame.stack && frame.stack.length > 0) {
+              const at = frame.stack.findIndex((r) => r.id === region.name);
+              if (at < 0 || frame.stack.slice(at + 1).some(({ cells: r }) => r.col < clip.col + clip.cols && clip.col < r.col + r.cols && r.row < clip.row + clip.rows && clip.row < r.row + r.rows)) return;
+            }
+            const width = pixels.width / region.cells.cols;
+            const height = pixels.height / region.cells.rows;
+            panel.style.cssText = `position:fixed;pointer-events:none;overflow:hidden;z-index:10;left:${pixels.x + (clip.col - region.cells.col) * width}px;top:${pixels.y + (clip.row - region.cells.row) * height}px;width:${clip.cols * width}px;height:${clip.rows * height}px;font:${height}px/${height}px monospace;white-space:pre`;
+            for (const entry of section.entries) {
+              let runs = entry.runs;
+              if (!frame.targeting && entry.key === "terrain") {
+                const state = engine.state;
+                if (!state) return;
+                const grid = state.actor.grid;
+                const remembered = core.knownFeat(state, grid);
+                let feat = state.chunk.features.get(remembered < 0 ? 0 : remembered);
+                if (feat.mimic !== null) feat = state.chunk.features.get(feat.mimic);
+                const trap = remembered > 0 ? core.squareKnownTraps(state.known, grid)[0] : void 0;
+                const name = trap?.name ?? feat.name;
+                const color = core.colorCharToAttr(trap?.color ?? feat.dAttr);
+                runs = [{ text: `${name.charAt(0).toUpperCase()}${name.slice(1)} `, color, css: core.colorToCss(color) }];
+              }
+              let col = entry.screen.col;
+              for (const run of runs) {
+                for (const ch of run.text) {
+                  const cell = doc.createElement("span");
+                  cell.textContent = ch;
+                  cell.style.cssText = `position:absolute;left:${(col++ - clip.col) * width}px;top:${(entry.screen.row - clip.row) * height}px;width:${width}px;height:${height}px;color:${run.css}`;
+                  panel.appendChild(cell);
+                }
+              }
+            }
+            panel.hidden = false;
+          }
+        }
+      };
+    }
+  },
   hooks({ flags }) {
     const hooks = {};
     if (flags["bugfix.textAndHistory"] === true) {
@@ -221,6 +279,10 @@ var plugin_default = {
   },
   start(mod) {
     if (mod.meta.flags["bugfix.armourValueFloor"] === true) mod.meta.log("armour value floor declared (#179)");
+  },
+  stop() {
+    statusPanel?.remove();
+    statusPanel = void 0;
   }
 };
 export {
