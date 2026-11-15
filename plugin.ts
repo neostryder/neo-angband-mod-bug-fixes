@@ -124,6 +124,8 @@ export default {
       /* Upstream dd0e40858 restores the percentage threshold for archers. */
       ...(flags["bugfix.combatFixes"] === true ? {
         monsterArcheryFrequency: { greaterThan: 25 },
+        /* Upstream b4fb34b36 pushes targets away from the explosion. */
+        forceFromBlastCenter: true,
       } : {}),
     };
 

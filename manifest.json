@@ -22,6 +22,7 @@
       "engine:access",
       "registry:command",
       "registry:monster",
+      "registry:projection",
       "registry:tval"
     ],
     "description": "Opt-in fixes for bugs in Angband 4.2.6, in the style of an unofficial patch.\n\nEach kind of fix has its own toggle, so you can switch off any one of them and keep the rest. The port itself reproduces 4.2.6 faithfully, bugs included, so with this mod off none of these fixes apply.",
@@ -47,7 +48,7 @@
       {
         "flag": "bugfix.combatFixes",
         "title": "Combat fixes",
-        "description": "Corrects combat behavior. Monsters with archery spells prefer range when their innate spell frequency exceeds 25 percent.",
+        "description": "Corrects combat behavior. Monsters with archery spells prefer range when their innate spell frequency exceeds 25 percent. FORCE explosions push targets away from the blast center, and a target at the center moves in a random direction.",
         "default": true
       },
       {

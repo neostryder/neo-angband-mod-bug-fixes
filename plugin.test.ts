@@ -10,7 +10,7 @@
  */
 
 import { readFileSync } from "node:fs";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
   loadPackFile as loadJson,
   loadPackRecords as loadRecords,
@@ -65,6 +65,22 @@ function policyRegistrations(flags: Readonly<Record<string, boolean>>) {
   const manifest = validateManifest(JSON.parse(readFileSync(new URL("./manifest.json", import.meta.url), "utf8")));
   expect(api2PolicyEffects(policies ?? {}, () => false).registrations).toEqual({});
   return api2PolicyEffects(policies ?? {}, (capability) => manifest.capabilities!.includes(capability)).registrations;
+}
+
+function policyArena(seed: number) {
+  const game = startGame(pack, { seed, depth: 1 });
+  const state = game.state;
+  state.monsters.fill(null);
+  state.chunk.setMon(state.actor.grid, 0);
+  for (let y = 5; y <= 15; y++) {
+    for (let x = 5; x <= 20; x++) {
+      const grid = { x, y };
+      state.chunk.setFeat(grid, neoCore.FEAT.FLOOR);
+      state.chunk.setMon(grid, 0);
+    }
+  }
+  neoCore.placePlayer(state, { x: 8, y: 10 });
+  return game;
 }
 
 /** The game's own hook members the mod returns, given its flags and an engine. */
@@ -318,7 +334,7 @@ describe("the six atomic flags survive the class regroup through rule and sectio
     expect(manifest.api).toBe(">=2.2.0 <3.0.0");
     expect(manifest.runtime).toBe("in-process");
     expect(manifest.entry).toBe("plugin.js");
-    expect(manifest.capabilities).toEqual(["engine:access", "registry:command", "registry:monster", "registry:tval"]);
+    expect(manifest.capabilities).toEqual(["engine:access", "registry:command", "registry:monster", "registry:projection", "registry:tval"]);
     const grant = matchCapability("registry:tval");
     expect(grant?.parsed).toEqual({ kind: "registry", domain: "tval" });
     expect(grant?.entry.tiers).toContain("first-party");
@@ -745,6 +761,66 @@ describe("monster archery - bugfix.combatFixes (#6710)", () => {
     expect(policyRegistrations({ "bugfix.combatFixes": false }).monsterArcheryFrequency).toBeUndefined();
     expect(policyRegistrations({ "bugfix.stateIntegrity": true }).monsterArcheryFrequency).toBeUndefined();
     expect(neoCore.monsterLovesArchery(mon)).toBe(frequency < 4);
+  });
+});
+
+describe("FORCE blast center - bugfix.combatFixes (#6747)", () => {
+  it.each([
+    ["ball", 2, 0],
+    ["bolt", 0, 0],
+    ["beam", 0, neoCore.PROJECT.BEAM],
+  ] as const)("Core computes the upstream center for a %s, only while on", (_name, radius, flags) => {
+    const { state } = policyArena(6747);
+    const origin = state.actor.grid;
+    const finish = { x: 12, y: 10 };
+    for (const enabled of [false, true]) {
+      const policy = policyRegistrations({ "bugfix.combatFixes": enabled }).forceFromBlastCenter;
+      expect(policy).toBe(enabled ? true : undefined);
+      const blast = neoCore.computeProjection(state.chunk, {
+        origin, finish, rad: radius, typ: neoCore.PROJ.FORCE, flg: flags,
+        maxRange: state.z.maxRange, dam: 20,
+        ...(policy ? { forceFromBlastCenter: policy } : {}),
+      });
+      expect(blast.centre).toEqual(enabled && (radius === 0 || flags) ? origin : finish);
+    }
+  });
+
+  it.each([false, true])("Core thrusts a monster from the selected center with combat fixes %s", (enabled) => {
+    const game = policyArena(6747);
+    const state = game.state;
+    const origin = state.actor.grid;
+    const centre = { x: 12, y: 10 };
+    const race = game.booted.registries.monsters.races.find((r) => r.name === "kobold archer")!;
+    const mon = neoCore.blankMonster(race);
+    mon.midx = 1;
+    mon.grid = { x: 11, y: 10 };
+    mon.hp = mon.maxhp = 100;
+    state.monsters[1] = mon;
+    state.chunk.setMon(mon.grid, 1);
+    const policy = policyRegistrations({ "bugfix.combatFixes": enabled }).forceFromBlastCenter;
+    expect(policy).toBe(enabled ? true : undefined);
+    state.modHooks = policy ? { forceFromBlastCenter: () => policy } : {};
+    const thrusts: [neoCore.Loc, neoCore.Loc, number][] = [];
+    neoCore.castProjection(state, {
+      projections: game.booted.registries.projections!, maxRange: state.z.maxRange,
+      playerActor: neoCore.basicPlayerActor(state),
+      hooks: { monster: { thrustAway: (from, target, grids) => thrusts.push([from, target, grids]) } },
+    }, neoCore.playerCastSource(state), centre, 20, neoCore.PROJ.FORCE, neoCore.PROJECT.KILL, 2);
+    expect(thrusts).toEqual([[enabled ? centre : origin, mon.grid, 3]]);
+    expect(mon.hp).toBe(90);
+  });
+
+  it.each([false, true])("Core handles a target at the blast center with combat fixes %s", (enabled) => {
+    const { state } = policyArena(6747);
+    const target = { ...state.actor.grid };
+    const policy = policyRegistrations({ "bugfix.combatFixes": enabled }).forceFromBlastCenter;
+    expect(policy).toBe(enabled ? true : undefined);
+    state.modHooks = policy ? { forceFromBlastCenter: () => policy } : {};
+    const draw = vi.spyOn(state.rng, "randint0");
+    neoCore.thrustAway(state, target, target, 1);
+    expect(draw.mock.calls).toEqual(enabled ? [[8], [8]] : [[8]]);
+    expect(neoCore.locEq(state.actor.grid, target)).toBe(false);
+    draw.mockRestore();
   });
 });
 
