@@ -1,0 +1,22 @@
+{
+  "sections": {
+    "bugfix-level-generation": {
+      "fieldPatches": {
+        "core:comb-right": [
+          {
+            "op": "set",
+            "path": "doors",
+            "value": 2
+          }
+        ],
+        "core:zag-right": [
+          {
+            "op": "set",
+            "path": "D.5",
+            "value": "##x(xx#x(xx#x(xx##"
+          }
+        ]
+      }
+    }
+  }
+}

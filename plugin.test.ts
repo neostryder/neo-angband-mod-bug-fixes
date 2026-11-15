@@ -227,9 +227,9 @@ describe("the six atomic flags survive the class regroup through rule and sectio
    * What actually needed to survive the six-flags-to-three regroup is
    * PLAYER TOGGLE STATE. The host
    * resolves rule and section choices from its own store, keyed by flag name.
-   * Four retired rules retain `renamedRuleFlags`; the Text and history rule
-   * became a content section, so its own legacy rule and its two predecessors
-   * use that section's `renamedSectionFlags` instead.
+   * Three retired rules retain `renamedRuleFlags`; Text and history and Level
+   * generation use `renamedSectionFlags` to keep choices across the move to
+   * content sections.
    */
   const manifestDocument = JSON.parse(
     readFileSync(new URL("./manifest.json", import.meta.url), "utf8"),
@@ -253,13 +253,32 @@ describe("the six atomic flags survive the class regroup through rule and sectio
     expect((plugin as Record<string, unknown>)["migrateBag"]).toBeUndefined();
   });
 
-  it("keeps non-content rule renames pointed at current rules", () => {
-    expect(manifestRaw.renamedRuleFlags).toEqual(EXPECTED_RENAMES);
-    const currentFlags = new Set(manifestRaw.rules.map((r) => r.flag));
+  it("keeps every retired flag pointed at its current rule or section", () => {
+    const sectionRenames = Object.fromEntries(manifestRaw.sections.flatMap((s) =>
+      (s.renamedSectionFlags ?? []).filter((old) => old !== s.flag && old in EXPECTED_RENAMES)
+        .map((old) => [old, s.flag ?? s.id]),
+    ));
+    expect({ ...manifestRaw.renamedRuleFlags, ...sectionRenames }).toEqual(EXPECTED_RENAMES);
+    const currentFlags = new Set([
+      ...manifestRaw.rules.map((r) => r.flag),
+      ...manifestRaw.sections.map((s) => s.flag ?? s.id),
+    ]);
     for (const [oldFlag, newFlag] of Object.entries(EXPECTED_RENAMES)) {
-      expect(currentFlags.has(newFlag), `${newFlag} must still be a declared rule`).toBe(true);
-      expect(currentFlags.has(oldFlag), `${oldFlag} must NOT still be a declared rule`).toBe(false);
+      expect(currentFlags.has(newFlag), `${newFlag} must still be a declared toggle`).toBe(true);
+      expect(currentFlags.has(oldFlag), `${oldFlag} must NOT still be a declared toggle`).toBe(false);
     }
+  });
+
+  it("moves Level generation's current and original choices to its content section", () => {
+    const section = manifestRaw.sections.find((s) => s.id === "bugfix-level-generation");
+    expect(section?.flag).toBe("bugfix.levelGeneration");
+    expect(section?.renamedSectionFlags).toEqual(["bugfix.levelGeneration", "bugfix.stairsReachable"]);
+    expect(manifestRaw.rules.some((r) => r.flag === "bugfix.levelGeneration")).toBe(false);
+    expect(manifestRaw.renamedRuleFlags).toEqual({
+      "bugfix.noiseScentSave": "bugfix.stateIntegrity",
+      "bugfix.objectListOrder": "bugfix.stateIntegrity",
+      "bugfix.duplicateArtifact": "bugfix.stateIntegrity",
+    });
   });
 
   it("moves Text and history's legacy rule choices to its content section", () => {

@@ -50,12 +50,6 @@
         "default": true
       },
       {
-        "flag": "bugfix.levelGeneration",
-        "title": "Level generation fixes",
-        "description": "Fixes that change the layout of a level. Vanilla level generation can seal a staircase inside a vault it never tunnelled into. Across 15,000 generated levels, 0.15% had a stranded staircase, nearly always an up stair, since a level gets only 1-2 up stairs but 3-4 down. This adds one reachable staircase to such a floor. Because it changes the layout of the levels it repairs, a character played with it on will not see the same layouts as one played without it. It has its own toggle so you can keep faithful layouts without giving up the text and bookkeeping fixes.",
-        "default": true
-      },
-      {
         "flag": "bugfix.armourValueFloor",
         "title": "Fix magical armour pricing below plainer armour",
         "description": "Angband 4.2.6's store-pricing formula can price an enchanted armour item below an ordinary item of the same class that has strictly more total AC, because AC from a magical to-AC bonus is priced on a flatter scale than the item's own base AC (#179). For example, a magical Studded Leather Armour (+2 AC, 14 total AC) is priced at 266 gold, while a plain Hard Leather Armour (16 AC, no bonus) is priced at 336. This raises an enchanted item's price to at least that of the cheapest ordinary item of its own class with strictly more total AC, so an enchanted item never costs less than that plainer armour. It changes store buy and sell prices for enchanted armour, so it has its own toggle and defaults off for anyone who wants 4.2.6's store economics unchanged.",
@@ -66,10 +60,20 @@
     "renamedRuleFlags": {
       "bugfix.noiseScentSave": "bugfix.stateIntegrity",
       "bugfix.objectListOrder": "bugfix.stateIntegrity",
-      "bugfix.duplicateArtifact": "bugfix.stateIntegrity",
-      "bugfix.stairsReachable": "bugfix.levelGeneration"
+      "bugfix.duplicateArtifact": "bugfix.stateIntegrity"
     },
     "sections": [
+      {
+        "id": "bugfix-level-generation",
+        "flag": "bugfix.levelGeneration",
+        "title": "Level generation fixes",
+        "description": "Fixes that change the layout of a level. Vanilla level generation can seal a staircase inside a vault it never tunnelled into. Across 15,000 generated levels, 0.15% had a stranded staircase, nearly always an up stair, since a level gets only 1-2 up stairs but 3-4 down. This adds one reachable staircase to such a floor. Because it changes the layout of the levels it repairs, a character played with it on will not see the same layouts as one played without it. It has its own toggle so you can keep faithful layouts without giving up the text and bookkeeping fixes.",
+        "default": true,
+        "renamedSectionFlags": [
+          "bugfix.levelGeneration",
+          "bugfix.stairsReachable"
+        ]
+      },
       {
         "id": "bugfix-text-and-history",
         "flag": "bugfix.textAndHistory",
