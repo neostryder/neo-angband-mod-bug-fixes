@@ -467,7 +467,7 @@ describe("the six atomic flags survive the class regroup through rule and sectio
     expect(Object.keys(manifestDocument)).toEqual(["format", "schemaVersion", "data"]);
     expect(manifestDocument.schemaVersion).toBe(2);
     expect(manifest.api).toBe(plugin.api);
-    expect(manifest.api).toBe(">=2.2.0 <3.0.0");
+    expect(manifest.api).toBe(">=2.3.0 <3.0.0");
     expect(manifest.runtime).toBe("in-process");
     expect(manifest.entry).toBe("plugin.js");
     expect(manifest.capabilities).toEqual(["engine:access", "registry:command", "registry:monster", "registry:projection", "registry:tval"]);
