@@ -46,7 +46,7 @@ import type {
   ObjectListEntry,
 } from "@rpgm-tools/neo-angband-core";
 import * as neoCore from "@rpgm-tools/neo-angband-core";
-import { apiRangeVerdict, checkApi2Policies, matchCapability, validateManifest } from "@rpgm-tools/neo-angband-mod-sdk";
+import { api2PolicyEffects, apiRangeVerdict, checkApi2Policies, matchCapability, validateManifest } from "@rpgm-tools/neo-angband-mod-sdk";
 import type { Api2Hooks, ModApi2 } from "@rpgm-tools/neo-angband-mod-sdk";
 import { armourValueFloor } from "./armour-value";
 import plugin from "./plugin";
@@ -289,7 +289,7 @@ describe("the six atomic flags survive the class regroup through rule and sectio
     expect(manifest.api).toBe(">=2.2.0 <3.0.0");
     expect(manifest.runtime).toBe("in-process");
     expect(manifest.entry).toBe("plugin.js");
-    expect(manifest.capabilities).toEqual(["engine:access", "registry:tval"]);
+    expect(manifest.capabilities).toEqual(["engine:access", "registry:command", "registry:tval"]);
     const grant = matchCapability("registry:tval");
     expect(grant?.parsed).toEqual({ kind: "registry", domain: "tval" });
     expect(grant?.entry.tiers).toContain("first-party");
@@ -697,6 +697,64 @@ describe("#4666: packOverflowVictim redirects to the item that left the quiver (
     for (const h of potions) {
       expect(neoCore.gearGet(state.gear, h)).not.toBeNull();
     }
+  });
+});
+
+describe("complete rest - bugfix.stateIntegrity (#6803)", () => {
+  const defaultEffects = [
+    "BLIND", "CONFUSED", "POISONED", "AFRAID", "TERROR", "STUN",
+    "CUT", "SLOW", "PARALYZED", "IMAGE",
+  ];
+  const completeEffects = [...defaultEffects, "AMNESIA", "SCRAMBLE"];
+  const policiesFor = (enabled: boolean) => plugin.policies({
+    id: "bug-fixes", flags: { "bugfix.stateIntegrity": enabled },
+  });
+
+  it("declares the ten default effects plus amnesia and scramble, only while on", () => {
+    expect(policiesFor(true)?.completeRestEffects).toEqual(completeEffects);
+    expect(checkApi2Policies(policiesFor(true))).toBeNull();
+    expect(policiesFor(false)).toBeUndefined();
+    expect(plugin.policies({ id: "bug-fixes", flags: {} })).toBeUndefined();
+  });
+
+  it("keeps the armour floor and rest policies independent when both flags are on", () => {
+    const policies = plugin.policies({ id: "bug-fixes", flags: {
+      "bugfix.stateIntegrity": true, "bugfix.armourValueFloor": true,
+    } });
+    expect(policies?.completeRestEffects).toEqual(completeEffects);
+    expect(policies?.valueFloor).toEqual(plugin.policies({
+      id: "bug-fixes", flags: { "bugfix.armourValueFloor": true },
+    })?.valueFloor);
+    expect(checkApi2Policies(policies)).toBeNull();
+  });
+
+  it.each(completeEffects)("waits out %s in core with the policy, preserving the default when off", (name) => {
+    const game = startGame(pack, { seed: 6803, depth: 1 });
+    const state = game.state;
+    const player = state.actor.player;
+    player.chp = player.mhp;
+    player.csp = player.msp;
+    player.timed.fill(0);
+    player.wordRecall = 0;
+    player.deepDescent = 0;
+    const idx = neoCore.timedNameToIdx(name);
+    expect(idx).toBeGreaterThanOrEqual(0);
+    player.timed[idx] = 1;
+
+    const manifest = validateManifest(JSON.parse(readFileSync(new URL("./manifest.json", import.meta.url), "utf8")));
+    const effects = api2PolicyEffects(policiesFor(true)!, (capability) => manifest.capabilities!.includes(capability));
+    expect(typeof effects.hooks.completeRestEffects).toBe("function");
+    state.modHooks = { completeRestEffects: effects.hooks.completeRestEffects! };
+    expect(neoCore.playerRestingCompleteMet(state, neoCore.REST_COMPLETE)).toBe(false);
+    expect(neoCore.playerRestingCompleteMet(state, neoCore.REST_ALL_POINTS)).toBe(true);
+    player.timed[idx] = 0;
+    expect(neoCore.playerRestingCompleteMet(state, neoCore.REST_COMPLETE)).toBe(true);
+
+    player.timed[idx] = 1;
+    const disabled = api2PolicyEffects(policiesFor(false) ?? {}).hooks;
+    expect(disabled.completeRestEffects).toBeUndefined();
+    state.modHooks = {};
+    expect(neoCore.playerRestingCompleteMet(state, neoCore.REST_COMPLETE)).toBe(!defaultEffects.includes(name));
   });
 });
 

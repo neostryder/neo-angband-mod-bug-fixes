@@ -192,16 +192,35 @@ var plugin_default = {
     return hooks;
   },
   policies({ flags }) {
-    if (flags["bugfix.armourValueFloor"] !== true) return void 0;
-    return {
-      valueFloor: {
-        kind: "valueFloor",
-        tvals: ARMOUR_TVALS,
-        appliesTo: "egoOrPositiveToA",
-        comparison: "cheapestPlainSameTvalWithStrictlyGreaterAc",
-        price: "objectValueReal"
-      }
-    };
+    const policies = flags["bugfix.stateIntegrity"] === true ? {
+      completeRestEffects: [
+        "BLIND",
+        "CONFUSED",
+        "POISONED",
+        "AFRAID",
+        "TERROR",
+        "STUN",
+        "CUT",
+        "SLOW",
+        "PARALYZED",
+        "IMAGE",
+        "AMNESIA",
+        "SCRAMBLE"
+      ]
+    } : {};
+    if (flags["bugfix.armourValueFloor"] === true) {
+      return {
+        ...policies,
+        valueFloor: {
+          kind: "valueFloor",
+          tvals: ARMOUR_TVALS,
+          appliesTo: "egoOrPositiveToA",
+          comparison: "cheapestPlainSameTvalWithStrictlyGreaterAc",
+          price: "objectValueReal"
+        }
+      };
+    }
+    return Object.keys(policies).length > 0 ? policies : void 0;
   },
   /*
    * The hooks API 2 has no form for: the game's own members, called with live

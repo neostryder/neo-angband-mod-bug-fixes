@@ -113,6 +113,14 @@ export default {
   },
 
   policies({ flags }: Api2HookContext): Api2Policies | undefined {
+    /* Upstream 41319eef9 waits out amnesia and scrambled stats as well. */
+    const policies: Api2Policies = flags["bugfix.stateIntegrity"] === true ? {
+      completeRestEffects: [
+        "BLIND", "CONFUSED", "POISONED", "AFRAID", "TERROR", "STUN",
+        "CUT", "SLOW", "PARALYZED", "IMAGE", "AMNESIA", "SCRAMBLE",
+      ],
+    } : {};
+
     /*
      * bugfix.armourValueFloor (#179): an enchanted armour item is never priced
      * below the cheapest ordinary item of its own class with strictly more
@@ -120,16 +128,19 @@ export default {
      * is what armour-value.ts specifies. `requiresReload` on the manifest rule
      * is why the declaration is read once at load.
      */
-    if (flags["bugfix.armourValueFloor"] !== true) return undefined;
-    return {
-      valueFloor: {
-        kind: "valueFloor",
-        tvals: ARMOUR_TVALS,
-        appliesTo: "egoOrPositiveToA",
-        comparison: "cheapestPlainSameTvalWithStrictlyGreaterAc",
-        price: "objectValueReal",
-      },
-    };
+    if (flags["bugfix.armourValueFloor"] === true) {
+      return {
+        ...policies,
+        valueFloor: {
+          kind: "valueFloor",
+          tvals: ARMOUR_TVALS,
+          appliesTo: "egoOrPositiveToA",
+          comparison: "cheapestPlainSameTvalWithStrictlyGreaterAc",
+          price: "objectValueReal",
+        },
+      };
+    }
+    return Object.keys(policies).length > 0 ? policies : undefined;
   },
 
   /*
