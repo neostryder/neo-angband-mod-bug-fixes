@@ -20,6 +20,10 @@ were not retagged.
 
 ## [Unreleased]
 
+### Fixed
+
+- [Visible] [Compatibility] **"Level generation fixes" and "State integrity fixes" work again.** Since the mod moved to mod API 2, both groups did nothing even with their toggles on: a staircase stranded inside an unreachable vault stayed there, and the artifact creation, partial stack merge, and quiver overflow guards were skipped. The mod now requests the `engine:access` capability these fixes need to reach the game's own hooks, and a test fails if that request is ever removed.
+
 ## 1.4.0-beta.2 - 2026-10-30
 
 ### Changed

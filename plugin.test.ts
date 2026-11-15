@@ -289,10 +289,20 @@ describe("the six atomic flags survive the class regroup through rule and sectio
     expect(manifest.api).toBe(">=2.0.0 <3.0.0");
     expect(manifest.runtime).toBe("in-process");
     expect(manifest.entry).toBe("plugin.js");
-    expect(manifest.capabilities).toEqual(["registry:tval"]);
-    const grant = matchCapability(manifest.capabilities![0]!);
+    expect(manifest.capabilities).toEqual(["engine:access", "registry:tval"]);
+    const grant = matchCapability("registry:tval");
     expect(grant?.parsed).toEqual({ kind: "registry", domain: "tval" });
     expect(grant?.entry.tiers).toContain("first-party");
+  });
+
+  /* The game hands a mod its engine, and so calls engineHooks, only when the
+   * manifest grants engine:access; without it the level generation and state
+   * integrity fixes are switched on but never run. */
+  it("grants engine:access because it declares engineHooks", () => {
+    const manifest = validateManifest(manifestDocument, { code: ["plugin.js"] });
+    expect(typeof plugin.engineHooks).toBe("function");
+    expect(manifest.capabilities).toContain("engine:access");
+    expect(matchCapability("engine:access")?.entry.tiers).toContain("first-party");
   });
 
   /**
