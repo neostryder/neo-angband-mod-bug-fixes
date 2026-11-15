@@ -124,6 +124,8 @@ export default {
         forgetUnlitImpassableTerrain: true,
         /* Upstream 29985cd05 requires knowledge of every actual race flag. */
         monsterLoreCompleteness: true,
+        /* Upstream 9f5b723ad excludes acquired loot and caps the theft counter. */
+        monsterOwnDropThefts: true,
       } : {}),
       /* Upstream dd0e40858 restores the percentage threshold for archers. */
       ...(flags["bugfix.combatFixes"] === true ? {

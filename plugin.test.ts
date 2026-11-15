@@ -197,6 +197,16 @@ describe("the bug-fixes mod's entry point", () => {
     expect(plugin.policies({ id: "bug-fixes", flags: allOff })).toBeUndefined();
   });
 
+  it("The policy tables retain every enabled class when the flags are combined", () => {
+    const state = plugin.policies({ id: "bug-fixes", flags: { "bugfix.stateIntegrity": true } });
+    const combat = plugin.policies({ id: "bug-fixes", flags: { "bugfix.combatFixes": true } });
+    const armour = plugin.policies({ id: "bug-fixes", flags: { "bugfix.armourValueFloor": true } });
+    const combined = plugin.policies({ id: "bug-fixes", flags: { ...ALL_ON, "bugfix.armourValueFloor": true } });
+    expect(combined).toEqual({ ...state, ...combat, ...armour });
+    expect(Object.keys(combined!)).toHaveLength(7);
+    expect(checkApi2Policies(combined)).toBeNull();
+  });
+
   it("installs exactly the hooks each class needs, and no other", () => {
     for (const [flag, classHooks] of CLASS_TO_HOOKS) {
       const hooks = api2Hooks({ [flag]: true });
@@ -912,6 +922,52 @@ describe("monster lore completeness - bugfix.stateIntegrity (#6715)", () => {
     expect(lore.flags.has(RF.ATTR_MULTI)).toBe(enabled);
     expect(lore.flags.has(RF.FORCE_SLEEP)).toBe(enabled);
     expect(lore.flags.has(RF.FORCE_DEPTH)).toBe(true);
+  });
+});
+
+describe("monster own-drop thefts - bugfix.stateIntegrity (#6774)", () => {
+  it.each([
+    ["own drop", 0], ["own drop", 65534], ["own drop", 65535],
+    ["other drop", 0], ["other drop", 65534], ["other drop", 65535],
+    ["no origin", 0], ["no origin", 65534], ["no origin", 65535],
+  ] as const)("Core counts theft of %s from counter %i with the policy on and off", (origin, initial) => {
+    for (const enabled of [false, true]) {
+      const game = policyArena(6774);
+      const state = game.state;
+      const reg = game.booted.registries.objects;
+      const race = game.booted.registries.monsters.races.find((r) => r.name === "kobold archer")!;
+      const mon = neoCore.blankMonster(race);
+      mon.midx = 1;
+      mon.grid = { x: 9, y: 10 };
+      mon.mspeed = 110;
+      state.monsters[1] = mon;
+      state.chunk.setMon(mon.grid, 1);
+      const kind = reg.kinds.find((k) => k.tval === neoCore.TV.GOLD)!;
+      const obj = objectPrep(new Rng(1), reg, game.booted.registries.constants, kind, 0, "minimise");
+      obj.pval = 17;
+      obj.heldMIdx = 1;
+      obj.originRace = origin === "own drop" ? race.ridx : origin === "other drop" ? race.ridx + 1 : 0;
+      mon.heldObj.push(obj);
+      const lore = neoCore.getLore(state.lore, race);
+      lore.thefts = initial;
+      state.actor.player.timed.fill(0);
+      state.playerState!.pflags.on(neoCore.PF.STEAL);
+      const skills = [...state.actor.combat.skills];
+      skills[neoCore.SKILL.STEALTH] = 1000;
+      state.actor.combat = { ...state.actor.combat, skills };
+      const policy = policyRegistrations({ "bugfix.stateIntegrity": enabled }).monsterOwnDropThefts;
+      expect(policy).toBe(enabled ? true : undefined);
+      expect(policyRegistrations({ "bugfix.combatFixes": true }).monsterOwnDropThefts).toBeUndefined();
+      state.modHooks = policy ? { monsterOwnDropThefts: () => policy } : {};
+      const steal = game.registry.get("steal");
+      expect(steal).toBeTypeOf("function");
+      const gold = state.actor.player.au;
+      expect(steal!(state, { code: "steal", dir: 6 })).toBe(state.z.moveEnergy);
+      expect(state.actor.player.au).toBe(gold + 17);
+      expect(mon.heldObj).toEqual([]);
+      expect(obj.heldMIdx).toBe(0);
+      expect(lore.thefts).toBe(enabled ? initial + (origin === "own drop" && initial < 65535 ? 1 : 0) : initial + 1);
+    }
   });
 });
 
