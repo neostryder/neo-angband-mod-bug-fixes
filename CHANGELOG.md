@@ -24,11 +24,16 @@ were not retagged.
 
 - [Visible] [Balance] **A new Combat fixes toggle (`bugfix.combatFixes`, on by default) changes which monsters hang back to shoot and which way explosions knock creatures.** Monsters that use breath and other innate attacks on more than a quarter of their turns keep their distance and shoot, where 4.2.6 made monsters that rarely used those attacks hang back (upstream dd0e40858). Explosions that knock creatures back push them away from the center of the blast instead of away from the caster, a creature at the center goes in a random direction, and bolts and beams still push away from where they came from (upstream b4fb34b36). The toggle needs Neo Angband with mod API 2.2.0.
 
+### Changed
+
+- [Visible] **State integrity fixes now needs a reload when switched on or off.** It wraps the rest action when the game starts, so it is the one Rules toggle that no longer applies at once.
+
 ### Fixed
 
 - [Visible] **When you stand with no light, you forget the walls, rubble, and doors you remembered around you, the same as when you are blind.** A character with the unlight ability keeps that memory. The fix is part of the State integrity toggle and needs Neo Angband with mod API 2.2.0 (upstream 1d2ad35a2, fc29847fd).
 - [Visible] **Monster recall no longer shows a monster as fully known before you have learned all of its traits and spells.** You learn the traits recall displays when you first see a monster, and the traits about where and how it appears after you kill one. The fix is part of the State integrity toggle and needs Neo Angband with mod API 2.2.0 (upstream 29985cd05).
 - [Visible] **The theft count in monster recall includes only items you stole from that monster's own drops.** The count stops at 65535. The fix is part of the State integrity toggle and needs Neo Angband with mod API 2.2.0 (upstream 9f5b723ad).
+- [Internal] [Modding-API] **Commands that continue a rest are now marked as background commands (upstream 727138d71).** The marker sits under State integrity fixes and leaves rest length, energy use, completion, interruption, and random rolls unchanged. The current web client ignores the marker and keeps its own repeat memory, so pressing n after a rest still repeats the wrong command there.
 - [Visible] [Compatibility] **"Level generation fixes" and "State integrity fixes" work again.** Since the mod moved to mod API 2, both groups did nothing even with their toggles on: a staircase stranded inside an unreachable vault stayed there, and the artifact creation, partial stack merge, and quiver overflow guards were skipped. The mod now requests the `engine:access` capability these fixes need to reach the game's own hooks, and a test fails if that request is ever removed.
 
 ## 1.4.0-beta.2 - 2026-10-30
