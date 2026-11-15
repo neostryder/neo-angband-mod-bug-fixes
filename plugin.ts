@@ -113,13 +113,19 @@ export default {
   },
 
   policies({ flags }: Api2HookContext): Api2Policies | undefined {
-    /* Upstream 41319eef9 waits out amnesia and scrambled stats as well. */
-    const policies: Api2Policies = flags["bugfix.stateIntegrity"] === true ? {
-      completeRestEffects: [
-        "BLIND", "CONFUSED", "POISONED", "AFRAID", "TERROR", "STUN",
-        "CUT", "SLOW", "PARALYZED", "IMAGE", "AMNESIA", "SCRAMBLE",
-      ],
-    } : {};
+    const policies: Api2Policies = {
+      /* Upstream 41319eef9 waits out amnesia and scrambled stats as well. */
+      ...(flags["bugfix.stateIntegrity"] === true ? {
+        completeRestEffects: [
+          "BLIND", "CONFUSED", "POISONED", "AFRAID", "TERROR", "STUN",
+          "CUT", "SLOW", "PARALYZED", "IMAGE", "AMNESIA", "SCRAMBLE",
+        ],
+      } : {}),
+      /* Upstream dd0e40858 restores the percentage threshold for archers. */
+      ...(flags["bugfix.combatFixes"] === true ? {
+        monsterArcheryFrequency: { greaterThan: 25 },
+      } : {}),
+    };
 
     /*
      * bugfix.armourValueFloor (#179): an enchanted armour item is never priced

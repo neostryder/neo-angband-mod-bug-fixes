@@ -59,6 +59,14 @@ const bugFixesHooks = (flags: Readonly<Record<string, boolean>>): ModHooks => sp
 const api2Hooks = (flags: Readonly<Record<string, boolean>>): Api2Hooks =>
   plugin.hooks({ id: "bug-fixes", flags }) ?? {};
 
+function policyRegistrations(flags: Readonly<Record<string, boolean>>) {
+  const policies = plugin.policies({ id: "bug-fixes", flags });
+  expect(checkApi2Policies(policies ?? {})).toBeNull();
+  const manifest = validateManifest(JSON.parse(readFileSync(new URL("./manifest.json", import.meta.url), "utf8")));
+  expect(api2PolicyEffects(policies ?? {}, () => false).registrations).toEqual({});
+  return api2PolicyEffects(policies ?? {}, (capability) => manifest.capabilities!.includes(capability)).registrations;
+}
+
 /** The game's own hook members the mod returns, given its flags and an engine. */
 const engineHooksFor = (flags: Readonly<Record<string, boolean>>): Record<string, unknown> =>
   (plugin.engineHooks?.({ id: "bug-fixes", flags, engine: { api: "1", core: neoCore, state: undefined, registries: undefined, registry: undefined } }) ?? {}) as Record<string, unknown>;
@@ -123,6 +131,7 @@ const pack: GamePack = {
 
 /** Every flag the manifest declares, all ON - what enabling the mod gives you. */
 const ALL_ON: Readonly<Record<string, boolean>> = {
+  "bugfix.combatFixes": true,
   "bugfix.textAndHistory": true,
   "bugfix.stateIntegrity": true,
   "bugfix.levelGeneration": true,
@@ -135,6 +144,7 @@ const ALL_ON: Readonly<Record<string, boolean>> = {
  * (`levelGenerated`), as are three parts of `stateIntegrity`.
  */
 const CLASS_TO_HOOKS: readonly [string, readonly string[]][] = [
+  ["bugfix.combatFixes", []],
   ["bugfix.textAndHistory", ["historyAdd", "historyDisplay", "messageText"]],
   ["bugfix.stateIntegrity", ["saveNoiseScent", "objectListTiebreak"]],
   ["bugfix.levelGeneration", []],
@@ -308,7 +318,7 @@ describe("the six atomic flags survive the class regroup through rule and sectio
     expect(manifest.api).toBe(">=2.2.0 <3.0.0");
     expect(manifest.runtime).toBe("in-process");
     expect(manifest.entry).toBe("plugin.js");
-    expect(manifest.capabilities).toEqual(["engine:access", "registry:command", "registry:tval"]);
+    expect(manifest.capabilities).toEqual(["engine:access", "registry:command", "registry:monster", "registry:tval"]);
     const grant = matchCapability("registry:tval");
     expect(grant?.parsed).toEqual({ kind: "registry", domain: "tval" });
     expect(grant?.entry.tiers).toContain("first-party");
@@ -716,6 +726,25 @@ describe("#4666: packOverflowVictim redirects to the item that left the quiver (
     for (const h of potions) {
       expect(neoCore.gearGet(state.gear, h)).not.toBeNull();
     }
+  });
+});
+
+describe("monster archery - bugfix.combatFixes (#6710)", () => {
+  it.each([0, 3, 4, 25, 26, 50, 100])("Core uses the upstream threshold at frequency %i, only while on", (frequency) => {
+    const game = startGame(pack, { seed: 6710, depth: 1 });
+    const race = game.booted.registries.monsters.races.find((r) => r.name === "kobold archer")!;
+    expect(race).toBeDefined();
+    const mon = neoCore.blankMonster({ ...race, freqInnate: frequency });
+    const policy = policyRegistrations({ "bugfix.combatFixes": true }).monsterArcheryFrequency;
+    expect(policy).toEqual({ greaterThan: 25 });
+    const lovesArchery = (freq: number) => freq > policy!.greaterThan;
+    expect(neoCore.monsterLovesArchery(mon, lovesArchery)).toBe(frequency > 25);
+    mon.race = { ...mon.race, spellFlags: new FlagSet(race.spellFlags.size) };
+    expect(neoCore.monsterLovesArchery(mon, lovesArchery)).toBe(false);
+    mon.race = { ...race, freqInnate: frequency };
+    expect(policyRegistrations({ "bugfix.combatFixes": false }).monsterArcheryFrequency).toBeUndefined();
+    expect(policyRegistrations({ "bugfix.stateIntegrity": true }).monsterArcheryFrequency).toBeUndefined();
+    expect(neoCore.monsterLovesArchery(mon)).toBe(frequency < 4);
   });
 });
 

@@ -192,22 +192,29 @@ var plugin_default = {
     return hooks;
   },
   policies({ flags }) {
-    const policies = flags["bugfix.stateIntegrity"] === true ? {
-      completeRestEffects: [
-        "BLIND",
-        "CONFUSED",
-        "POISONED",
-        "AFRAID",
-        "TERROR",
-        "STUN",
-        "CUT",
-        "SLOW",
-        "PARALYZED",
-        "IMAGE",
-        "AMNESIA",
-        "SCRAMBLE"
-      ]
-    } : {};
+    const policies = {
+      /* Upstream 41319eef9 waits out amnesia and scrambled stats as well. */
+      ...flags["bugfix.stateIntegrity"] === true ? {
+        completeRestEffects: [
+          "BLIND",
+          "CONFUSED",
+          "POISONED",
+          "AFRAID",
+          "TERROR",
+          "STUN",
+          "CUT",
+          "SLOW",
+          "PARALYZED",
+          "IMAGE",
+          "AMNESIA",
+          "SCRAMBLE"
+        ]
+      } : {},
+      /* Upstream dd0e40858 restores the percentage threshold for archers. */
+      ...flags["bugfix.combatFixes"] === true ? {
+        monsterArcheryFrequency: { greaterThan: 25 }
+      } : {}
+    };
     if (flags["bugfix.armourValueFloor"] === true) {
       return {
         ...policies,
