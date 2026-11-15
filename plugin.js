@@ -220,6 +220,18 @@ var plugin_default = {
     return hooks;
   },
   start(mod) {
+    if (mod.meta.flags["bugfix.stateIntegrity"] === true && mod.engine?.registry) {
+      const core = mod.engine.core;
+      const registry = mod.engine.registry;
+      registry.commands.register("rest", (state, cmd) => {
+        const first = state.cmdQueue?.length ?? 0;
+        const energy = core.restAction(state, cmd);
+        for (const next of state.cmdQueue?.slice(first) ?? []) {
+          if (next.code === "rest") next.background = 1;
+        }
+        return energy;
+      });
+    }
     if (mod.meta.flags["bugfix.armourValueFloor"] === true) mod.meta.log("armour value floor declared (#179)");
   }
 };

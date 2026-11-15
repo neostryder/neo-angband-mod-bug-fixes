@@ -10,7 +10,7 @@
  */
 
 import { readFileSync } from "node:fs";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
   loadPackFile as loadJson,
   loadPackRecords as loadRecords,
@@ -44,9 +44,10 @@ import type {
   MakeDeps,
   ModHooks,
   ObjectListEntry,
+  PlayerCommand,
 } from "@rpgm-tools/neo-angband-core";
 import * as neoCore from "@rpgm-tools/neo-angband-core";
-import { apiRangeVerdict, checkApi2Policies, matchCapability, validateManifest } from "@rpgm-tools/neo-angband-mod-sdk";
+import { CapabilitySet, apiRangeVerdict, checkApi2Policies, matchCapability, validateManifest } from "@rpgm-tools/neo-angband-mod-sdk";
 import type { Api2Hooks, ModApi2 } from "@rpgm-tools/neo-angband-mod-sdk";
 import { armourValueFloor } from "./armour-value";
 import plugin from "./plugin";
@@ -139,6 +140,131 @@ const CLASS_TO_HOOKS: readonly [string, readonly string[]][] = [
   ["bugfix.stateIntegrity", ["saveNoiseScent", "objectListTiebreak"]],
   ["bugfix.levelGeneration", []],
 ];
+
+describe("727138d71: rest continuations are background commands", () => {
+  function fixture(flags: Readonly<Record<string, boolean>> = { "bugfix.stateIntegrity": true }) {
+    const { state } = startGame(pack, { seed: 727, depth: 1 });
+    const actions = new neoCore.ActionRegistry();
+    actions.register("rest", neoCore.restAction);
+    const manifest = validateManifest(JSON.parse(readFileSync(new URL("./manifest.json", import.meta.url), "utf8")));
+    const registry = neoCore.createModRegistryHost({ commands: actions }, CapabilitySet.fromManifest(manifest));
+    plugin.start({ meta: { flags, log: () => {} }, engine: { core: neoCore, state, registry } } as unknown as ModApi2);
+    return { state, actions, rest: actions.get("rest")! };
+  }
+
+  it("requires a reload because the host registers the rest action at start", () => {
+    const manifest = validateManifest(JSON.parse(readFileSync(new URL("./manifest.json", import.meta.url), "utf8")));
+    expect(manifest.rules?.find((rule) => rule.flag === "bugfix.stateIntegrity")?.requiresReload).toBe(true);
+  });
+
+  it.each([{}, { "bugfix.stateIntegrity": false }, { "bugfix.textAndHistory": true }])("keeps the original action when State integrity is off: %j", (flags) => {
+    const f = fixture(flags);
+    expect(f.rest).toBe(neoCore.restAction);
+    expect(f.rest(f.state, { code: "rest", args: { count: 50 } })).toBe(f.state.z.moveEnergy);
+    expect(f.state.cmdQueue).toEqual([{ code: "rest", args: { count: 49 } }]);
+  });
+
+  it.each([50, neoCore.REST_ALL_POINTS, neoCore.REST_COMPLETE, neoCore.REST_SOME_POINTS])("marks only the new continuation for count %i", (count) => {
+    const f = fixture();
+    const oldRest: PlayerCommand = { code: "rest", args: { count: 7 } };
+    const oldHold: PlayerCommand = { code: "hold", background: 2 };
+    f.state.cmdQueue = [oldRest, oldHold];
+    const cmd: PlayerCommand = { code: "rest", args: { count } };
+    const before = structuredClone(cmd);
+    expect(f.rest(f.state, cmd)).toBe(f.state.z.moveEnergy);
+    expect(cmd).toEqual(before);
+    expect(f.state.cmdQueue).toEqual([
+      oldRest, oldHold,
+      { code: "rest", args: { count: count > 0 ? count - 1 : count }, background: 1 },
+    ]);
+    expect(oldRest.background).toBeUndefined();
+    expect(oldHold.background).toBe(2);
+    expect(f.state.resting).toEqual({ count: count > 0 ? count - 1 : count, turnsRested: 1 });
+    expect(f.state.restRepeatCount).toBe(count > 0 ? count : 0);
+  });
+
+  it("spends exactly 50 turns and keeps the initiating command as a background-aware repeat target", () => {
+    const f = fixture();
+    const initial: PlayerCommand = { code: "rest", args: { count: 50 } };
+    let cmd: PlayerCommand | undefined = initial;
+    let last: PlayerCommand | undefined;
+    let energy = 0;
+    let turns = 0;
+    while (cmd && turns < 51) {
+      if (!cmd.background) last = cmd;
+      if (turns > 0) expect(cmd.background).toBe(1);
+      energy += f.rest(f.state, cmd);
+      turns++;
+      cmd = f.state.cmdQueue?.shift();
+    }
+    expect(turns).toBe(50);
+    expect(energy).toBe(50 * f.state.z.moveEnergy);
+    expect(f.state.resting).toBeUndefined();
+    expect(f.state.cmdQueue).toEqual([]);
+    expect(last).toBe(initial);
+    expect(last!.args!.count).toBe(50);
+    expect(initial.background).toBeUndefined();
+  });
+
+  it.each([undefined, 0, 1, -4, NaN, 10000])("preserves the original duration, energy, and queue for input %s", (count) => {
+    const fixed = fixture();
+    const control = fixture({});
+    const cmd: PlayerCommand = count === undefined ? { code: "rest" } : { code: "rest", args: { count } };
+    const expected = control.rest(control.state, structuredClone(cmd));
+    expect(fixed.rest(fixed.state, cmd)).toBe(expected);
+    expect(fixed.state.resting).toEqual(control.state.resting);
+    expect(fixed.state.restRepeatCount).toBe(control.state.restRepeatCount);
+    expect(fixed.state.restingTurn).toBe(control.state.restingTurn);
+    expect(fixed.state.cmdQueue?.map(({ background: _background, ...next }) => next)).toEqual(control.state.cmdQueue);
+  });
+
+  it.each([neoCore.REST_ALL_POINTS, neoCore.REST_COMPLETE, neoCore.REST_SOME_POINTS])("keeps special-rest completion unchanged for %i", (count) => {
+    const f = fixture();
+    const p = f.state.actor.player;
+    p.chp = Math.max(0, p.mhp - 1);
+    p.csp = Math.max(0, p.msp - 1);
+    p.timed.fill(0);
+    p.wordRecall = 0;
+    p.deepDescent = 0;
+    f.rest(f.state, { code: "rest", args: { count } });
+    expect(f.state.cmdQueue?.[0]?.background).toBe(1);
+    p.chp = p.mhp;
+    p.csp = p.msp;
+    f.state.nextCommand = () => null;
+    const energy = f.state.actor.energy;
+    expect(neoCore.runGameLoop(f.state, f.actions)).toBe(neoCore.LOOP_STATUS.INPUT);
+    expect(f.state.actor.energy).toBe(energy);
+    expect(f.state.resting).toBeUndefined();
+    expect(f.state.cmdQueue).toEqual([]);
+  });
+
+  it("keeps interruption and the next rest's counters unchanged", () => {
+    const f = fixture();
+    f.rest(f.state, { code: "rest", args: { count: 50 } });
+    neoCore.disturb(f.state);
+    expect(f.state.resting).toBeUndefined();
+    expect(f.state.cmdQueue).toEqual([]);
+    expect(f.rest(f.state, { code: "rest", args: { count: 3 } })).toBe(f.state.z.moveEnergy);
+    expect(f.state.resting).toEqual({ count: 2, turnsRested: 1 });
+    expect(f.state.cmdQueue).toEqual([{ code: "rest", args: { count: 2 }, background: 1 }]);
+  });
+
+  it("preserves the live dispatcher's bloodlust rolls, RNG state, and energy", () => {
+    const fixed = fixture();
+    const control = fixture({});
+    const run = (f: ReturnType<typeof fixture>) => {
+      const pending: PlayerCommand[] = [{ code: "rest", args: { count: 50 } }];
+      f.state.nextCommand = () => pending.shift() ?? null;
+      f.state.actor.player.timed[neoCore.TMD.BLOODLUST] = 1;
+      const roll = vi.spyOn(f.state.rng, "randint0");
+      let energy = 0;
+      for (let i = 0; i < 50; i++) energy += neoCore.processPlayer(f.state, f.actions).energyUsed;
+      expect(roll.mock.calls.filter(([n]) => n === 200)).toHaveLength(50);
+      return { energy, rng: f.state.rng.getState(), actorEnergy: f.state.actor.energy, resting: f.state.resting, queue: f.state.cmdQueue };
+    };
+    expect(run(fixed)).toEqual(run(control));
+  });
+});
 
 describe("the bug-fixes mod's entry point", () => {
   it("matches the manifest: every runtime hook class has a declared rule or section flag", () => {
@@ -289,7 +415,7 @@ describe("the six atomic flags survive the class regroup through rule and sectio
     expect(manifest.api).toBe(">=2.0.0 <3.0.0");
     expect(manifest.runtime).toBe("in-process");
     expect(manifest.entry).toBe("plugin.js");
-    expect(manifest.capabilities).toEqual(["engine:access", "registry:tval"]);
+    expect(manifest.capabilities).toEqual(["engine:access", "registry:tval", "registry:command"]);
     const grant = matchCapability("registry:tval");
     expect(grant?.parsed).toEqual({ kind: "registry", domain: "tval" });
     expect(grant?.entry.tiers).toContain("first-party");

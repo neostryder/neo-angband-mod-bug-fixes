@@ -25,7 +25,7 @@ switch has no flag of its own, the game knows it by its section id instead.
 - **Engine:** `>=1.23.0-beta.1`
 - **Shape:** `content`
 - **Facets:** `content`, `plugin`
-- **Capabilities:** `engine:access` - only while "Level generation fixes" or "State integrity fixes" is on, to reach the game's own hooks for those fixes. `registry:tval` - only while "Fix magical armour pricing below plainer armour" is on, to install its store-value adjustment.
+- **Capabilities:** `engine:access` - only while "Level generation fixes" or "State integrity fixes" is on, to reach the game's own hooks for those fixes. `registry:tval` - only while "Fix magical armour pricing below plainer armour" is on, to install its store-value adjustment. `registry:command` - only while "State integrity fixes" is on, to wrap the rest action.
 
 What a capability string permits, and what a mod that asks for one cannot do
 without it, is in [the mod lifecycle
