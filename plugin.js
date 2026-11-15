@@ -199,6 +199,8 @@ var plugin_default = {
       ...flags["bugfix.stateIntegrity"] === true ? {
         /* Upstream 0347703f7 reports only bits removed by intersections. */
         flagIntersectionResult: "removedBits",
+        /* Upstream e71cc96e8 refreshes derived state only on a level change. */
+        experienceUpdates: "levelChangeOnly",
         completeRestEffects: [
           "BLIND",
           "CONFUSED",

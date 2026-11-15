@@ -330,7 +330,7 @@ describe("the bug-fixes mod's entry point", () => {
     const armour = plugin.policies({ ...hookContext(), flags: { "bugfix.armourValueFloor": true } });
     const combined = plugin.policies({ ...hookContext(), flags: { ...ALL_ON, "bugfix.armourValueFloor": true } });
     expect(combined).toEqual({ ...state, ...combat, ...level, ...armour });
-    expect(Object.keys(combined!)).toHaveLength(10);
+    expect(Object.keys(combined!)).toHaveLength(11);
     expect(checkApi2Policies(combined)).toBeNull();
   });
 
@@ -711,6 +711,58 @@ describe("0347703f7: flag intersection results - bugfix.stateIntegrity", () => {
     }
     expect(neoCore.flagInter(Uint8Array.of(1), Uint8Array.of(3))).toBe(true);
     expect(neoCore.flagsMask(Uint8Array.of(1), 1, 2)).toBe(true);
+  });
+});
+
+describe("e71cc96e8: experience updates - bugfix.stateIntegrity", () => {
+  it.each([
+    [{}, false],
+    [{ "bugfix.stateIntegrity": false }, false],
+    [{ "bugfix.combatFixes": true }, false],
+    [{ "bugfix.levelGeneration": true }, false],
+    [{ "bugfix.stateIntegrity": true }, true],
+  ] as const)("gates experience updates on State integrity and command access: %j", (flags, enabled) => {
+    const policies = plugin.policies({ ...hookContext(), flags }) ?? {};
+    const grant = vi.fn((_capability: string) => true);
+    const effects = api2PolicyEffects(policies, grant);
+    expect(grant.mock.calls.some(([capability]) => capability === "registry:command")).toBe(enabled);
+    expect(effects.registrations.experienceUpdates).toBe(enabled ? "levelChangeOnly" : undefined);
+    expect(policyRegistrations(flags).experienceUpdates).toBe(enabled ? "levelChangeOnly" : undefined);
+    expect(api2PolicyEffects(policies, (capability) => capability !== "registry:command").registrations.experienceUpdates).toBeUndefined();
+  });
+
+  it.each([
+    ["gain within level", 1, 0, 0, 1, false, 1],
+    ["loss within level", 2, 15, 15, -1, false, 2],
+    ["gain levels", 1, 0, 0, 45, false, 4],
+    ["lose levels", 4, 45, 45, -40, false, 1],
+    ["permanent loss", 4, 45, 45, -40, true, 1],
+    ["maximum level only", 1, 0, 45, 1, false, 1],
+  ] as const)("updates derived state only after a level change: %s", (_name, level, exp, maxExp, amount, permanent, expectedLevel) => {
+    const outcomes = [];
+    for (const enabled of [false, true]) {
+      const game = policyArena(7171);
+      const p = game.state.actor.player;
+      p.expFactor = 100;
+      p.lev = level;
+      p.maxLev = level;
+      p.exp = exp;
+      p.maxExp = maxExp;
+      const onLevelChange = vi.fn();
+      const msg = vi.fn();
+      const onGainLevel = vi.fn();
+      const policy = policyRegistrations({ "bugfix.stateIntegrity": enabled }).experienceUpdates;
+      const deps: neoCore.ExpDeps = {
+        rng: game.state.rng, onLevelChange, msg, onGainLevel,
+        ...(policy ? { experienceUpdates: () => policy === "levelChangeOnly" } : {}),
+      };
+      if (amount >= 0) neoCore.playerExpGain(p, amount, deps);
+      else neoCore.playerExpLose(p, -amount, permanent, deps);
+      expect(p.lev).toBe(expectedLevel);
+      expect(onLevelChange).toHaveBeenCalledTimes(!enabled || expectedLevel !== level ? 1 : 0);
+      outcomes.push({ player: JSON.parse(JSON.stringify(p)), rng: game.state.rng.getState(), messages: msg.mock.calls, gains: onGainLevel.mock.calls.map(([, lev]) => lev) });
+    }
+    expect(outcomes[1]).toEqual(outcomes[0]);
   });
 });
 
