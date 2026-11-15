@@ -25,6 +25,7 @@
       "registry:monster",
       "registry:projection",
       "registry:room",
+      "registry:rune",
       "registry:tval"
     ],
     "description": "Opt-in fixes for bugs in Angband 4.2.6, in the style of an unofficial patch.\n\nEach kind of fix has its own toggle, so you can switch off any one of them and keep the rest. The port itself reproduces 4.2.6 faithfully, bugs included, so with this mod off none of these fixes apply.",

@@ -197,6 +197,8 @@ var plugin_default = {
       ...flags["bugfix.levelGeneration"] === true ? { forcedDescentStairs: true } : {},
       /* Upstream 41319eef9 waits out amnesia and scrambled stats as well. */
       ...flags["bugfix.stateIntegrity"] === true ? {
+        /* Upstream 0347703f7 reports only bits removed by intersections. */
+        flagIntersectionResult: "removedBits",
         completeRestEffects: [
           "BLIND",
           "CONFUSED",

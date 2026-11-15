@@ -330,7 +330,7 @@ describe("the bug-fixes mod's entry point", () => {
     const armour = plugin.policies({ ...hookContext(), flags: { "bugfix.armourValueFloor": true } });
     const combined = plugin.policies({ ...hookContext(), flags: { ...ALL_ON, "bugfix.armourValueFloor": true } });
     expect(combined).toEqual({ ...state, ...combat, ...level, ...armour });
-    expect(Object.keys(combined!)).toHaveLength(9);
+    expect(Object.keys(combined!)).toHaveLength(10);
     expect(checkApi2Policies(combined)).toBeNull();
   });
 
@@ -471,7 +471,7 @@ describe("the six atomic flags survive the class regroup through rule and sectio
     expect(manifest.api).toBe(">=2.4.0 <3.0.0");
     expect(manifest.runtime).toBe("in-process");
     expect(manifest.entry).toBe("plugin.js");
-    expect(manifest.capabilities).toEqual(["engine:access", "registry:command", "registry:effect-info", "registry:monster", "registry:projection", "registry:room", "registry:tval"]);
+    expect(manifest.capabilities).toEqual(["engine:access", "registry:command", "registry:effect-info", "registry:monster", "registry:projection", "registry:room", "registry:rune", "registry:tval"]);
     const grant = matchCapability("registry:tval");
     expect(grant?.parsed).toEqual({ kind: "registry", domain: "tval" });
     expect(grant?.entry.tiers).toContain("first-party");
@@ -654,6 +654,63 @@ describe("#6665: raw player notes expand after history storage", () => {
     expect(entryAfterReload).toMatchObject({ event: expanded.slice(0, 79) });
     expect(entryAfterReload.event).toHaveLength(79);
     expect(entryAfterReload.event).not.toMatch(/"$/);
+  });
+});
+
+describe("0347703f7: flag intersection results - bugfix.stateIntegrity", () => {
+  function contextFor(flags: Readonly<Record<string, boolean>>): neoCore.FlagSetContext {
+    const policy = policyRegistrations(flags).flagIntersectionResult;
+    return policy ? { flagIntersectionResult: () => policy === "removedBits" } : {};
+  }
+
+  it.each([
+    [{}, false],
+    [{ "bugfix.stateIntegrity": false }, false],
+    [{ "bugfix.combatFixes": true }, false],
+    [{ "bugfix.levelGeneration": true }, false],
+    [{ "bugfix.stateIntegrity": true }, true],
+  ] as const)("requests rune access only for State integrity fixes: %j", (flags, enabled) => {
+    const policies = plugin.policies({ ...hookContext(), flags }) ?? {};
+    const grant = vi.fn((_capability: string) => true);
+    const effects = api2PolicyEffects(policies, grant);
+    expect(grant.mock.calls.some(([capability]) => capability === "registry:rune")).toBe(enabled);
+    expect(effects.registrations.flagIntersectionResult).toBe(enabled ? "removedBits" : undefined);
+    expect(policyRegistrations(flags).flagIntersectionResult).toBe(enabled ? "removedBits" : undefined);
+    expect(api2PolicyEffects(policies, (capability) => capability !== "registry:rune").registrations.flagIntersectionResult).toBeUndefined();
+  });
+
+  it.each([
+    [0x00, 0x00, false, false],
+    [0x00, 0x03, true, false],
+    [0x01, 0x03, true, false],
+    [0x03, 0x03, false, false],
+    [0x03, 0x01, true, true],
+    [0x03, 0x04, true, true],
+  ])("reports removed bits for %i intersect %i without changing mutation", (left, right, faithful, fixed) => {
+    for (const enabled of [false, true]) {
+      const context = contextFor({ "bugfix.stateIntegrity": enabled });
+      const bits = Uint8Array.of(0, left as number);
+      expect(neoCore.flagInter(bits, Uint8Array.of(0, right as number), context)).toBe(enabled ? fixed : faithful);
+      expect(Array.from(bits)).toEqual([0, (left as number) & (right as number)]);
+    }
+  });
+
+  it("passes the context through masks, wrapper intersections, and clones", () => {
+    for (const enabled of [false, true]) {
+      const context = contextFor({ "bugfix.stateIntegrity": enabled });
+      const subset = FlagSet.forFlags(16, context);
+      subset.on(9);
+      const superset = new FlagSet(Uint8Array.of(0, 3));
+      const clone = subset.clone();
+      expect(subset.inter(superset)).toBe(!enabled);
+      expect(subset.mask(9, 10)).toBe(!enabled);
+      expect(clone.inter(superset)).toBe(!enabled);
+      expect(neoCore.flagsMask(clone.bits, context, 9, 10)).toBe(!enabled);
+      expect(Array.from(subset.bits)).toEqual([0, 1]);
+      expect(Array.from(clone.bits)).toEqual([0, 1]);
+    }
+    expect(neoCore.flagInter(Uint8Array.of(1), Uint8Array.of(3))).toBe(true);
+    expect(neoCore.flagsMask(Uint8Array.of(1), 1, 2)).toBe(true);
   });
 });
 
