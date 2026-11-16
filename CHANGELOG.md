@@ -27,6 +27,7 @@ were not retagged.
 ### Changed
 
 - [Visible] **State integrity fixes now needs a reload when switched on or off.** It wraps the rest action when the game starts, so it is the one Rules toggle that no longer applies at once.
+- [Visible] [Compatibility] **Bug Fixes now needs Neo Angband with mod API 2.4.0.** The new fixes rely on rules that first appear in that API, so the mod declares ">=2.4.0 <3.0.0" and no longer supports 2.2.0 or 2.3.0.
 
 ### Fixed
 
@@ -35,6 +36,10 @@ were not retagged.
 - [Visible] **The theft count in monster recall includes only items you stole from that monster's own drops.** The count stops at 65535. The fix is part of the State integrity toggle and needs Neo Angband with mod API 2.2.0 (upstream 9f5b723ad).
 - [Internal] [Modding-API] **Commands that continue a rest are now marked as background commands (upstream 727138d71).** The marker sits under State integrity fixes and leaves rest length, energy use, completion, interruption, and random rolls unchanged. The current web client ignores the marker and keeps its own repeat memory, so pressing n after a rest still repeats the wrong command there.
 - [Visible] [Compatibility] **"Level generation fixes" and "State integrity fixes" work again.** Since the mod moved to mod API 2, both groups did nothing even with their toggles on: a staircase stranded inside an unreachable vault stayed there, and the artifact creation, partial stack merge, and quiver overflow guards were skipped. The mod now requests the `engine:access` capability these fixes need to reach the game's own hooks, and a test fails if that request is ever removed.
+- [Visible] **Item information uses the inspected loadout's skills for missile critical hits.** With Combat fixes on, the critical-hit figures for bows, ammunition, and throwing weapons take bow and throwing skills from the character state being shown, while combat rolls and the O-combat option are unchanged. Stock data has zero bow and throw skill coefficients, so the shown numbers rarely change (upstream 6772cd485).
+- [Visible] **Forced descent no longer creates new up staircases.** With Level generation fixes on, random stair allocation skips up stairs, random placement picks down stairs, and Create Stairs fails with "Nothing happens!" on quest levels and the bottom level before moving any objects. The arrival stair and the connector stairs from the previous level stay, so a level seed reproduces the same level (upstream 27a260501).
+- [Visible] **Item knowledge and monster hearing are restored when a save loads.** With State integrity fixes on, items on the floor, in the pack, worn, and in stores show learned runes and curse bonuses as soon as a living character's save loads, and a dungeon level without a saved noise map rebuilds monster hearing from the last noise source that new saves record. A saved noise map, even an empty one, is kept, scent is not rebuilt, and saves made with the fix still load with it off (upstream caff97e09).
+- [Internal] [Modding-API] **Flag intersections report removed bits, and experience changes skip extra recalculation.** With State integrity fixes on, flag-intersection operations report whether they removed bits from the receiving set instead of whether the sets differed, which matters to mods that read the result (upstream 0347703f7). Gaining or losing experience without a level change no longer recalculates bonuses, hit points, mana, and spells (upstream e71cc96e8).
 
 ## 1.4.0-beta.2 - 2026-10-30
 

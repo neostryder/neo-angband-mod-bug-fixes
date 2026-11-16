@@ -15,7 +15,7 @@ switch has no flag of its own, the game knows it by its section id instead.
 | Setting | Identifier | Default | What it does |
 | --- | --- | --- | --- |
 | State integrity fixes | `bugfix.stateIntegrity` | on | Keeps the game's own bookkeeping consistent with itself, including across a save and reload. |
-| Combat fixes | `bugfix.combatFixes` | on | Monsters prefer archery only when their innate spell frequency is above 25 percent, and FORCE explosions push targets away from the blast center instead of the caster. |
+| Combat fixes | `bugfix.combatFixes` | on | Monsters prefer archery only when their innate spell frequency is above 25 percent, FORCE explosions push targets away from the blast center instead of the caster, and item information uses the inspected loadout's bow and throwing skills for critical hits. |
 | Level generation fixes | `bugfix.levelGeneration` | on | Fixes that change the layout of a level. |
 | Text and history fixes | `bugfix.textAndHistory` | on | Corrects text the game shows you, with no change to game state. [TEXT_CHANGES.md](../TEXT_CHANGES.md) lists every change. |
 | Borg Fixes | `bugfix.borgFixes` | on | Fixes for the Borg's own bookkeeping. |
@@ -24,9 +24,10 @@ switch has no flag of its own, the game knows it by its section id instead.
 ## What it needs
 
 - **Engine:** `>=1.23.0-beta.1`
+- **Mod API:** `>=2.4.0 <3.0.0`
 - **Shape:** `content`
 - **Facets:** `content`, `plugin`
-- **Capabilities:** `engine:access` - only while "Level generation fixes" or "State integrity fixes" is on, to reach the game's own hooks for those fixes. `registry:tval` - only while "Fix magical armour pricing below plainer armour" is on, to install its store-value adjustment. `registry:command` - only while "State integrity fixes" is on, to wrap the rest action. `registry:monster` - only while "Combat fixes" or "State integrity fixes" is on, to apply the monster archery, monster lore completeness, and theft count fixes. `registry:projection` - only while "Combat fixes" or "State integrity fixes" is on, to push FORCE knockback out from the blast center and to forget unlit impassable terrain.
+- **Capabilities:** `engine:access` - only while "Level generation fixes" or "State integrity fixes" is on, to reach the game's own hooks for those fixes. `registry:tval` - only while "Fix magical armour pricing below plainer armour" is on, to install its store-value adjustment. `registry:command` - only while "State integrity fixes" is on, to wrap the rest action and to schedule experience updates so only a level change triggers a full recalculation. `registry:monster` - only while "Combat fixes" or "State integrity fixes" is on, to apply the monster archery, monster lore completeness, and theft count fixes. `registry:projection` - only while "Combat fixes" or "State integrity fixes" is on, to push FORCE knockback out from the blast center and to forget unlit impassable terrain. `registry:rune` - only while "State integrity fixes" is on, to make flag intersections report removed bits and to restore object knowledge and noise when a save loads. `registry:effect-info` - only while "Combat fixes" is on, to take bow and throwing skills from the inspected character state in missile critical figures on the item information screen. `registry:room` - only while "Level generation fixes" is on, to apply the forced-descent stair rules.
 
 What a capability string permits, and what a mod that asks for one cannot do
 without it, is in [the mod lifecycle
